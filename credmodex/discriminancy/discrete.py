@@ -1,11 +1,16 @@
 import sys
 import os
 import warnings
+import itertools
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+
+import scipy.stats
+import statsmodels.stats
+import statsmodels.stats.outliers_influence
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.utils.design import *
@@ -258,10 +263,72 @@ class KS_Discriminant():
 
 
 
+class Correlation():
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
+        self.df = df
+        self.target = target
+        self.features = features
+
+    
+    def VIF(self):
+        dff = self.df[self.features]
+        dff = pd.get_dummies(dff, drop_first=True)
+        dff = dff.apply(pd.to_numeric, errors='coerce')
+        dff = dff.dropna()
+        dff = dff.astype(float)
+
+        vif_df = pd.DataFrame()
+        vif_df['Variable'] = dff.columns
+        vif_df['VIF'] = [
+            round(statsmodels.stats.outliers_influence.variance_inflation_factor(dff.values, i),3)
+            for i in range(dff.shape[1])
+        ]
+
+        anderson_conditions = [
+            (vif_df['VIF'] < 1.8),
+            (vif_df['VIF'] >= 1.8) & (vif_df['VIF'] < 5),
+            (vif_df['VIF'] >= 5) & (vif_df['VIF'] < 10),
+            (vif_df['VIF'] >= 10),
+        ]
+        anderson_values = ['No Multicol.', 'Moderate', 'Potential Multicol.', 'Strong Multicol.']
+        vif_df['ANDERSON (2022)'] = np.select(anderson_conditions, anderson_values, '-')
+
+        return vif_df
+    
+
+    def correlation(self, numeric:bool=False):
+        dff = self.df[self.features]
+        if numeric:
+            dff = pd.get_dummies(dff, drop_first=True)
+            dff = dff.apply(pd.to_numeric, errors='coerce')
+            dff = dff.astype(float)
+
+        correlation_results = []
+        for col1, col2 in itertools.combinations(dff.columns, 2):
+            try:
+                valid_data = dff[[col1, col2]].dropna()
+                if valid_data.shape[0] > 1:
+                    correlation = valid_data[col1].corr(valid_data[col2])
+                else:
+                    correlation = None
+            except Exception:
+                correlation = None
+            
+            correlation_results.append({
+                'Column 1': col1,
+                'Column 2': col2,
+                'Correlation': correlation
+            })
+
+        correlation_df = pd.DataFrame(correlation_results)
+        return correlation_df
+
+
 
 
 if __name__ == "__main__":
     print(
-        KS_Discriminant(df, target='over', features=['idade','score_scr']).plot(col='idade', sort='ascending', graph_library='plotly')
+        Correlation(df, target='over', features=['idade','score_scr','UF']).correlation()
     )
-    KS_Discriminant(df, target='over', features=['idade','score_scr']).plot(col='idade', sort='ascending', graph_library='plotly').show()
+    Correlation(df, target='over', features=['idade','score_scr'])
+    

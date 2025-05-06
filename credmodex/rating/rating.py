@@ -19,7 +19,6 @@ from credmodex.utils.design import *
 
 
 
-
 class Rating():
     def __init__(self, model:type=None, df:pd.DataFrame=None, type:str='score', optb_type:str='transform', doc:str=None, 
                  features:list[str]=None, target:str=None, time_col:str=None, suppress_warnings:bool=False):
@@ -91,10 +90,8 @@ class Rating():
             if not hasattr(self.model, 'transform'):
                 raise AttributeError("Model has no `transform` method.")
 
-            try:
-                transformed = self.model.transform(self.df['score'], metric='bins')
-            except TypeError:
-                transformed = self.model.transform(self.df['score'])
+            try: transformed = self.model.transform(self.df['score'], metric='bins')
+            except TypeError: transformed = self.model.transform(self.df['score'])
 
             self.df['rating'] = transformed
 
@@ -104,8 +101,8 @@ class Rating():
             except Exception as e:
                 raise RuntimeError("Failed to build binning table.") from e
 
-            bins = self.map_to_alphabet_(bins)
-            self.df['rating'] = self.df['rating'].map(bins).fillna('-')
+            self.bins = bins
+            self.map_to_alphabet_(bins)
             return
 
         if optb_type is None:
@@ -115,6 +112,7 @@ class Rating():
 
     def map_to_alphabet_(self, lst):
         result = {num: chr(65 + index) for index, num in enumerate(lst)}
+        self.df['rating'] = self.df['rating'].map(result).fillna('-')
         return result
         
 
