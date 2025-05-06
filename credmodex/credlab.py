@@ -168,6 +168,10 @@ class CredLab:
             return IV_Discriminant(df, self.target, self.features)
         if (method == 'ks') or (method == KS_Discriminant):
             return KS_Discriminant(df, self.target, self.features)
+        if (method == 'psi') or (method == PSI_Discriminant):
+            return PSI_Discriminant(df, self.target, self.features)
+        if (method == 'corr') or (method == Correlation):
+            return Correlation(df, self.target, self.features)
 
 
 

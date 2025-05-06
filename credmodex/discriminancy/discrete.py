@@ -275,7 +275,7 @@ class PSI_Discriminant():
         self.features = features
 
 
-    def value(self, col:str=None, percent_shift:float=0.8, is_continuous:bool=False, final_value:bool=False):
+    def value(self, col:str=None, percent_shift:float=0.8, is_continuous:bool=False, max_n_bins:int=10, final_value:bool=False):
         # Split data using iloc
         split_index = int(len(self.df) * percent_shift)
         self.train = self.df.iloc[:split_index]
@@ -286,7 +286,7 @@ class PSI_Discriminant():
 
         if (is_continuous) or (self.df[col].dtype == 'float'):
             # Create bins based on training data
-            binning = OptimalBinning(name=col, dtype="numerical", max_n_bins=10)
+            binning = OptimalBinning(name=col, dtype="numerical", max_n_bins=max_n_bins)
             binning.fit(self.train[col].dropna(), y=self.train[self.train[col].notna()][self.target])
 
             # Apply binning to train and test sets
@@ -328,7 +328,7 @@ class PSI_Discriminant():
         return dff
     
 
-    def table(self, percent_shift:float=0.8):
+    def table(self, percent_shift:float=0.8, max_n_bins:int=10):
         columns = self.df.columns.to_list()
         columns = [col for col in columns if col != self.target]
 
@@ -338,7 +338,7 @@ class PSI_Discriminant():
         )
         for col in columns:
             try:
-                df = self.value(col=col, percent_shift=percent_shift)
+                df = self.value(col=col, percent_shift=percent_shift, max_n_bins=max_n_bins)
                 psi_df.loc[col,'PSI'] = df.loc['Total','PSI'].round(4)
                 psi_df.loc[col,'ANDERSON (2022)'] = df.loc['Total','ANDERSON (2022)']
             except:
@@ -347,8 +347,9 @@ class PSI_Discriminant():
         return psi_df
     
 
-    def plot(self, col:str=None, percent_shift:float=0.8, discrete:bool=False, width:int=900, height:int=450):
-        dff = self.value(col=col, percent_shift=percent_shift)
+    def plot(self, col:str=None, percent_shift:float=0.8, discrete:bool=False, max_n_bins:int=10, width:int=900, height:int=450):
+        dff = self.value(col=col, percent_shift=percent_shift, max_n_bins=max_n_bins)
+        psi = dff.loc['Total','ANDERSON (2022)']
         if dff is None: 
             return
         
@@ -396,12 +397,167 @@ class PSI_Discriminant():
             fig.add_trace(test_plot)
             fig.add_trace(train_plot)
 
-            plotly_main_layout(fig, title='Population Stability Analysis', x=col, y='freq', width=width, height=height)
+            plotly_main_layout(fig, title=f'Population Stability Analysis | PSI = {psi}', x=col, y='freq', width=width, height=height)
 
             return fig
 
         except:
             return
+
+
+
+
+
+class GINI_LORENZ_Discriminant():
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
+        self.df = df
+        self.target = target
+        self.features = features
+
+
+    def value(self, col:str=None, is_continuous:bool=False, max_n_bins:int=30, force_discrete:bool=False, percent:bool=True, final_value:bool=False):
+        if pd.api.types.is_datetime64_any_dtype(self.df[col]):
+            return None
+
+        if (is_continuous) or (self.df[col].dtype == 'float') and (not force_discrete):
+            binning = OptimalBinning(name=col, dtype="numerical", max_n_bins=max_n_bins)
+            binning.fit(self.df[col].dropna(), y=self.df[self.df[col].notna()][self.target])
+
+            binning = binning.transform(self.df[col], metric="bins")
+            self.df['bins'] = binning
+        else:
+            # Use categorical value counts
+            self.df['bins'] = self.df[col]
+    
+        dff = self.df.groupby(['bins', self.target], observed=False).size().unstack(fill_value=0)
+        dff.columns = ['Good', 'Bad']
+        dff = dff[dff.index != 'Missing']
+        dff['Total'] = dff['Good'] + dff['Bad']
+
+        dff['Odds'] = (dff['Good'] / dff['Bad']).round(2)
+        dff['Rate'] = (dff['Bad'] / dff['Total']).round(4)
+
+        total = dff['Total'].sum()
+        total_B = dff['Bad'].sum()
+        dff['Perfect'] = (dff['Total'].cumsum() / total_B).apply(lambda x: x if (x <= 1) else 1)
+        
+        dff['Good Cumul.'] = dff['Good'].cumsum() / dff['Good'].sum()
+        dff['Bad Cumul.'] = dff['Bad'].cumsum() / dff['Bad'].sum()
+        dff['Total Cumul.'] = dff['Total'].cumsum() / dff['Total'].sum()
+
+        dff = dff.reset_index()
+
+        for i in range(len(dff)):
+            fg_i = dff.loc[i, 'Good Cumul.']
+            fb_i = dff.loc[i, 'Bad Cumul.']
+            
+            if i == 0:
+                product = fg_i * fb_i
+            else:
+                fg_prev = dff.loc[i - 1, 'Good Cumul.']
+                fb_prev = dff.loc[i - 1, 'Bad Cumul.']
+                product = (fg_i + fg_prev) * (fb_i - fb_prev)
+            
+            dff.loc[i, 'Product'] = product
+
+        dff['Lift'] = dff['Bad Cumul.'] / dff['Total Cumul.']
+
+        dff = dff.set_index('bins')
+        gini_coeff = (1 - dff['Product'].sum()).round(3)
+
+        if percent:
+            for column in ['Rate', 'Perfect', 'Good Cumul.', 'Bad Cumul.', 'Total Cumul.', 'Product']:
+                dff[column] = (100* dff[column]).round(4)
+        else:
+            dff = dff.round(4)
+
+        if final_value:
+            if percent: return round(100*gini_coeff,2)
+            else: return round(gini_coeff,4)
+
+        return dff
+
+
+    def table(self, percent:bool=True):
+        columns = self.df.columns.to_list()
+        columns = [
+            col for col in self.df.columns
+            if col != self.target and not pd.api.types.is_datetime64_any_dtype(self.df[col])
+        ]
+
+        gini_df = pd.DataFrame(
+            index=columns,
+            columns=['Gini']
+        )
+        for col in columns:
+            try:
+                df = self.value(col=col, final_value=True, percent=percent)
+                gini_df.loc[col,'Gini'] = df
+            except:
+                print(f'<log: column {col} discharted>')
+
+        return gini_df
+    
+
+    def plot(self, col:str=None, type:str='lorenz gini', max_n_bins:int=30, force_discrete:bool=False, width:int=700, height:int=600):
+        type = type.strip().lower()
+        dff = self.value(col=col, max_n_bins=max_n_bins, force_discrete=force_discrete, percent=True)
+        D = (100 - dff['Product'].sum()).round(3)
+
+        if ('lor' in type) or ('gini' in type) or ('roc' in type) or ('auc' in type):
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=[0]+dff['Good Cumul.'].to_list(), y=[0]+dff['Bad Cumul.'].to_list(),
+                marker=dict(color='black'), name=col
+            ))
+            fig.add_trace(go.Scatter(
+                x=[0,0,100], y=[0,100,100], name='Perfect',
+                mode='lines', line=dict(dash='dash', color='rgb(26, 26, 26)')
+            ))
+            fig.add_trace(go.Scatter(
+                x=[0,100], y=[0,100], name='Random',
+                mode='lines', line=dict(dash='dash', color='rgb(218, 62, 86)')
+            ))
+            plotly_main_layout(fig, title=f'Lorenz & Gini | D = {D}',
+                x='Cumulative Goods', y='Cumulative Bads', x_range=[-0.5,101], y_range=[-0.5,101],
+                width=width, height=height
+            )
+
+        if ('cap' in type) or ('accur' in type) or ('ratio' in type):
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=[0]+dff['Total Cumul.'].to_list(), y=[0]+dff['Bad Cumul.'].to_list(),
+                marker=dict(color='black'), name=col
+            ))
+            fig.add_trace(go.Scatter(
+                x=[0]+dff['Total Cumul.'].to_list(), y=[0]+dff['Perfect'].to_list(), name='Perfect',
+                mode='lines', line=dict(dash='dash', color='rgb(26, 26, 26)')
+            ))
+            fig.add_trace(go.Scatter(
+                x=[0,100], y=[0,100], name='Random',
+                mode='lines', line=dict(dash='dash', color='rgb(218, 62, 86)')
+            ))
+            plotly_main_layout(fig, title=f'Lorenz & Gini | D = {D}',
+                x='Cumulative Total', y='Cumulative Bads', x_range=[-0.5,101], y_range=[-0.5,101],
+                width=width, height=height
+            )
+
+        if ('lift' in type):
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=dff['Total Cumul.'].to_list(), y=dff['Lift'].to_list(),
+                marker=dict(color='black'), name=col
+            ))
+            fig.add_trace(go.Scatter(
+                x=[0,100], y=[1,1], name='Random',
+                mode='lines', line=dict(dash='dash', color='rgb(218, 62, 86)')
+            ))
+            plotly_main_layout(fig, title=f'Lift Chart | D = {D}',
+                x='Cumulative Total', y='Lift', x_range=[dff['Total Cumul.'].min()-0.1,101], y_range=[0.5,dff['Lift'].max()+0.1],
+                width=width, height=height
+            )
+
+        return fig
 
 
 
@@ -470,9 +626,40 @@ class Correlation():
 
 
 
+
+class CHI2_Discriminant():
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
+        self.df = df
+        self.target = target
+        self.features = features
+
+
+    def value(self, col:str=None, percent_shift:float=None, final_value:bool=False):
+        self.observed = df[df.index <= (len(df)*percent_shift)]
+        self.expected = df[df.index > (len(df)*percent_shift)]
+
+        observed = self.observed.groupby([col, self.target], observed=False).size().unstack(fill_value=0)
+        observed.columns = ['O(Good)', 'O(Bad)']
+        observed['O(Total)'] = observed['O(Good)'] + observed['O(Bad)']
+        observed['O(Odd)'] = round(observed['O(Good)'] / observed['O(Bad)'],2)
+
+        expected = self.expected.groupby([col, self.target], observed=False).size().unstack(fill_value=0)
+        expected.columns = ['E(Good)', 'E(Bad)']
+
+        dff = pd.concat([observed, expected], axis=1)
+        dff['Chi-Square'] = (dff['O'] - dff['E'])**2 / dff['E']
+        
+
+        return dff
+
+
+
+
+
+
 if __name__ == "__main__":
     print(
         Correlation(df, target='over', features=['idade','score_scr','UF']).correlation()
     )
-    Correlation(df, target='over', features=['idade','score_scr'])
+
     
