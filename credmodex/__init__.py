@@ -1,6 +1,15 @@
-from .metrics import *
-from .models import *
-from .utils import *
-from .plots import *
-from .rating import *
-from .discriminancy import *
+from . import discriminancy
+from . import models
+from . import rating
+from . import metrics
+from . import plots
+from . import utils
+
+__all__ = [
+    'metrics',
+    'models',
+    'utils',
+    'plots',
+    'rating',
+    'discriminancy'
+]

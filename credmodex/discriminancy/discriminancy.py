@@ -22,6 +22,13 @@ from credmodex.utils.design import *
 df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\test\df.csv')
 
 
+__all__ = [
+    'IV_Discriminant', 
+    'KS_Discriminant',
+    'PSI_Discriminant',
+    'GINI_LORENZ_Discriminant',
+    'CHI2_Discriminant',
+]
 
 
 class IV_Discriminant():
@@ -36,6 +43,9 @@ class IV_Discriminant():
         if col is None:
             raise ValueError("A column (col) must be provided")
         
+        if pd.api.types.is_datetime64_any_dtype(self.df[col]):
+            return None
+
         woe_iv_df = self.df.groupby([col, self.target], observed=False).size().unstack(fill_value=0)
         woe_iv_df.columns = ['Good', 'Bad']
         woe_iv_df.loc['Total'] = woe_iv_df.sum()
@@ -136,6 +146,9 @@ class KS_Discriminant():
         if col is None:
             raise ValueError("A column (col) must be provided")
         
+        if pd.api.types.is_datetime64_any_dtype(self.df[col]):
+            return None
+
         df = self.df.copy(deep=True)[[col, self.target]]
         volumetry = df[df[col].notna()].groupby(by=col, observed=False)[self.target].count().astype(float).sum()
         df_ks = pd.DataFrame(df.groupby(by=col, observed=False)[self.target].count().astype(float))

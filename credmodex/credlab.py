@@ -1,15 +1,17 @@
 import sys
 import os
 import warnings
+from typing import Union
 
 import pandas as pd
 import numpy as np
-
-from sklearn.impute import SimpleImputer
+import sklearn
 
 sys.path.append(os.path.abspath('.'))
-from credmodex.discriminancy.discrete import *
-from credmodex.models.base_ import *
+from credmodex.discriminancy.discriminancy import *
+from credmodex.discriminancy import Correlation
+from credmodex.models import BaseModel_
+from credmodex.utils import plotly_main_layout, matplotlib_main_layout
 
 df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\test\df.csv')
 
@@ -56,7 +58,7 @@ class CredLab:
         # If random split is selected
         if self.split_type == 'random':
             X = self.df.index.to_list()
-            train, test = train_test_split(X, test_size=self.test_size, random_state=self.seed)
+            train, test = sklearn.model_selection.train_test_split(X, test_size=self.test_size, random_state=self.seed)
         # If time-based split is selected
         elif self.split_type == 'time':
             if self.time_column is None:
@@ -164,13 +166,22 @@ class CredLab:
         
         if isinstance(method, str): method = method.lower().strip()
 
-        if (method == 'iv') or (method == IV_Discriminant):
+        if ('iv' in method) or (method == IV_Discriminant):
             return IV_Discriminant(df, self.target, self.features)
-        if (method == 'ks') or (method == KS_Discriminant):
+        
+        if ('ks' in method) or (method == KS_Discriminant):
             return KS_Discriminant(df, self.target, self.features)
-        if (method == 'psi') or (method == PSI_Discriminant):
+        
+        if ('psi' in method) or (method == PSI_Discriminant):
             return PSI_Discriminant(df, self.target, self.features)
-        if (method == 'corr') or (method == Correlation):
+        
+        if ('gini' in method) or (method == GINI_LORENZ_Discriminant):
+            return GINI_LORENZ_Discriminant(df, self.target, self.features)
+        
+        if ('chi' in method) or (method == CHI2_Discriminant):
+            return CHI2_Discriminant(df, self.target, self.features)
+        
+        if ('corr' in method) or (method == Correlation):
             return Correlation(df, self.target, self.features)
 
 
@@ -183,4 +194,4 @@ class CredLab:
 
 if __name__ == "__main__":
     project = CredLab(df, target='over', features=df.columns.to_list())
-    print(project.eval_discriminancy('ks'))
+    print(project.eval_discriminancy('ks').table())

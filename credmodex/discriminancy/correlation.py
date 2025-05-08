@@ -6,6 +6,8 @@ import scipy.stats
 import statsmodels.stats
 
 
+__all__ = ['Correlation']
+
 
 class Correlation:
     @staticmethod

@@ -3,6 +3,11 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 
 
+__all__ = [
+    'plotly_main_layout',
+    'plotly_main_subplot_layout',
+    'matplotlib_main_layout',
+]
 
 
 def plotly_main_layout(fig: go.Figure, width=700, height=600, x=None, y=None, title=None,
