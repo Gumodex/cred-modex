@@ -35,7 +35,7 @@ class CH_Binning():
                 self.n_bins_ = i
                 self.model = model_
 
-            self.binning_table = self.model.binning_table
+            self._copy_model_attributes()
             
         return self.model
 
@@ -50,7 +50,10 @@ class CH_Binning():
         return pred_
 
 
-
+    def _copy_model_attributes(self):
+        for attr in dir(self.model):
+            if not attr.startswith('_') and not callable(getattr(self.model, attr)):
+                setattr(self, attr, getattr(self.model, attr))
 
 
 
