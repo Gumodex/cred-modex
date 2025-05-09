@@ -4,22 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "credmodex"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Python library for credit risk modeling"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
 authors = [{ name = "Gustavo Meira Filho", email = "gustavojvmf@gmail.com" }]
 requires-python = ">=3.8"
 dependencies = [
-    "numpy==2.2.5",
-    "pandas==2.2.3",
-    "scikit-learn==1.6.1",
-    "matplotlib==3.10.1",
-    "plotly==6.0.1",
-    "scipy==1.15.2",
-    "optbinning==0.20.1",
-    "statsmodels==0.14.4"
+    "numpy >=2.0",
+    "pandas>=2.0",
+    "scikit-learn>=1.6",
+    "matplotlib>=3.10",
+    "plotly>=6.0",
+    "scipy>=1.15",
+    "optbinning>=0.20",
+    "statsmodels>=0.14"
 ]
+
+[tool.setuptools.packages.find]
+include = ["credmodex*"]
 
 [project.urls]
 "Source" = "https://github.com/Gumodex/cred-modex"
