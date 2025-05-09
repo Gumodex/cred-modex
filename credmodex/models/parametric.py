@@ -8,7 +8,7 @@ import sklearn
 import sklearn.linear_model
 
 sys.path.append(os.path.abspath('.'))
-from credmodex.models.base_ import *
+from credmodex.models import *
 
 df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\test\df.csv')
 
@@ -16,7 +16,7 @@ df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\t
 
 
 
-class Logistic(BaseModel_):
+class Logistic(BaseModel):
     def __init__(self, model:type=None):
         """
         Initializes the Logistic class with necessary attributes.

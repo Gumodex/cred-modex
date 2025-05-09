@@ -1,7 +1,7 @@
-from .base_ import (
-    BaseModel_, 
+from .base_model import (
+    BaseModel, 
 )
 
 __all__ = [
-    'BaseModel_',
+    'BaseModel',
 ]

@@ -4,7 +4,7 @@ import os
 from optbinning import OptimalBinning
 
 sys.path.append(os.path.abspath('.'))
-from credmodex.discriminancy.goodness_of_fit import GoodnessFit
+from credmodex.discriminancy import GoodnessFit
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")

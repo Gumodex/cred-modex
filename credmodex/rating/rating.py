@@ -13,9 +13,9 @@ import plotly.graph_objects as go
 from optbinning import OptimalBinning
 
 sys.path.append(os.path.abspath('.'))
-from credmodex.discriminancy.discriminancy import *
-from credmodex.models.base_ import *
-from credmodex.utils.design import *
+from credmodex.discriminancy import *
+from credmodex.models import *
+from credmodex.utils import *
 
 
 

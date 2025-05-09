@@ -8,9 +8,8 @@ import numpy as np
 import sklearn
 
 sys.path.append(os.path.abspath('.'))
-from credmodex.discriminancy.discriminancy import *
-from credmodex.discriminancy import Correlation
-from credmodex.models import BaseModel_
+from credmodex.discriminancy import *
+from credmodex.models import BaseModel
 from credmodex.utils import plotly_main_layout, matplotlib_main_layout
 
 df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\test\df.csv')
@@ -138,7 +137,7 @@ class CredLab:
             try: time_col = self.time_column
             except: ...
         
-        base_model = BaseModel_(
+        base_model = BaseModel(
             model=model, treatment=treatment, df=self.df, doc=doc, seed=seed,
             features=self.features, target=self.target, predict_type='prob', time_col=time_col,
             name=name

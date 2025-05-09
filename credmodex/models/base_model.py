@@ -11,7 +11,7 @@ from credmodex.rating import *
 
 
 
-class BaseModel_:
+class BaseModel:
     """
     Base class for all models with advanced splitting functionality.
     """
