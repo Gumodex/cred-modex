@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import joblib
 import inspect
 
-from credmodex.rating.rating import *
+from credmodex.rating import *
 
 
 
@@ -17,7 +17,7 @@ class BaseModel_:
     """
 
     def __init__(self, model:type=None, treatment:type=None, df:pd.DataFrame=None, seed:int=42, doc:str=None,
-                 features=None, target=None, predict_type:str=None, time_col:str=None):
+                 features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None):
         self.seed = seed
         np.random.seed(self.seed)
         self.model = model
@@ -27,6 +27,10 @@ class BaseModel_:
         self.features = features
         self.target = target
         self.time_col = time_col
+        self.name = name
+
+        self.predict_type = predict_type
+        self.fit_predict()
 
         self.train_test_()
 
@@ -46,9 +50,6 @@ class BaseModel_:
             self.doc = None
 
         self.ratings = {}
-
-        self.predict_type = predict_type
-        self.fit_predict()
 
 
     def train_test_(self):
@@ -70,13 +71,13 @@ class BaseModel_:
 
         if predict_type and 'prob' in predict_type:
             if hasattr(self.model, 'predict_proba'):
-                self.df['score'] = 1000*self.model.predict_proba(self.df[self.features])[:,0]
-                self.df['score'] = self.df['score'].apply(lambda x: round(x,0))
+                self.df['score'] = self.model.predict_proba(self.df[self.features])[:,0]
+                self.df['score'] = self.df['score'].apply(lambda x: round(x,6))
                 return 
             elif hasattr(self.model, 'decision_function'):
                 scores = self.model.decision_function(self.df[self.features])
-                self.df['score'] = 1000 * scores
-                self.df['score'] = self.df['score'].round(0)
+                self.df['score'] = scores
+                self.df['score'] = self.df['score'].round(6)
                 return
             else:
                 raise AttributeError("Model doesn't support probability prediction.")
@@ -84,8 +85,8 @@ class BaseModel_:
         elif (predict_type is None) or (predict_type == 'raw'):
             if hasattr(self.model, 'predict'):
                 preds = self.model.predict(self.df[self.features])
-                self.df['score'] = 1000 * preds
-                self.df['score'] = self.df['score'].round(0)
+                self.df['score'] = preds
+                self.df['score'] = self.df['score'].round(6)
                 return
             else:
                 raise AttributeError("Model doesn't support raw predictions.")
@@ -97,7 +98,7 @@ class BaseModel_:
     def add_rating(self, model:type=None, doc:str=None, type='score', optb_type:str='transform', name:str=None,
                    time_col:str=None):
         if model is None:
-            raise ValueError("Model cannot be None. Input a str or a Model class.")
+            model = CH_Binning(max_n_bins=15)
         if name is None:
             name = f'{model.__class__.__name__}_{len(self.ratings)+1}'
         if time_col is None:
@@ -105,9 +106,12 @@ class BaseModel_:
         
         rating = Rating(
             model=model, df=self.df, type=type, features=self.features, target=self.target, 
-            optb_type=optb_type, doc=doc, time_col=time_col
+            optb_type=optb_type, doc=doc, time_col=time_col, name=name
             )
         self.ratings[name] = rating
         setattr(self, name, rating)
+        
+        # Set the self.rating to the last one defined
+        self.rating = rating
         
         return model

@@ -21,11 +21,12 @@ from credmodex.utils.design import *
 
 class Rating():
     def __init__(self, model:type=None, df:pd.DataFrame=None, type:str='score', optb_type:str='transform', doc:str=None, 
-                 features:list[str]=None, target:str=None, time_col:str=None, suppress_warnings:bool=False):
+                 features:list[str]=None, target:str=None, time_col:str=None, suppress_warnings:bool=False, name:str=None):
         self.model = model
         self.df = df
         self.doc = doc
         self.optb_type = optb_type
+        self.name = name
 
         self.time_col = time_col
         self.features = features
@@ -86,7 +87,7 @@ class Rating():
 
         optb_type = self.optb_type.lower().strip() if isinstance(self.optb_type, str) else None
 
-        if optb_type and 'transf' in optb_type:
+        if optb_type and 'trans' in optb_type:
             if not hasattr(self.model, 'transform'):
                 raise AttributeError("Model has no `transform` method.")
 

@@ -97,7 +97,7 @@ class GoodnessFit:
     @staticmethod
     def log_likelihood(y_true:list, y_pred:list, return_individual:bool=False):
         y_true = np.array(y_true)
-        y_pred = np.clip(np.array(y_pred), 1e-10, 1 - 1e-10)  # evita log(0)
+        y_pred = np.clip(np.array(y_pred), 1e-10, 1 - 1e-10)
         
         log_likelihood = y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)
         value = np.sum(log_likelihood)
@@ -260,6 +260,9 @@ class GoodnessFit:
 
     @staticmethod
     def deviance_odds(y_true:list, y_pred:list, final_value:bool=True, p_value:bool=False):
+        assert set(np.unique(y_true)).issubset({0, 1})
+        assert (y_pred.min() >= 0) and (y_pred.min() <= 1)
+
         dff = pd.DataFrame({
             'y_true': y_true,
             'y_pred': y_pred,
@@ -282,21 +285,49 @@ class GoodnessFit:
         D_bar_b = dff['D_b'].sum()/len(dff)
         psi_e = np.exp(D_bar_b)
 
-        power = float(round(100* (1-(psi_e-psi_o)/psi_e),2))
-        accuracy = float(round(100* (psi_e-psi_b)/(psi_e-1),2))
+        power = float(round(100* (psi_e-psi_b)/(psi_e-1),2))
+        accuracy = float(round(100* (1-(psi_e-psi_o)/psi_e),2))
 
         dff.loc['Total',:] = dff.sum(axis=0)
+
+        conclusion = ''
+        # Power interpretation
+        if power < 0:
+            conclusion += "⚠️ The model has negative predictive power, meaning it ranks outcomes worse than random. This suggests either a serious model flaw or a reversal in prediction logic (e.g., predicting the opposite class). "
+        elif power < 50:
+            conclusion += "⚠️ The model has weak predictive power, indicating limited ability to rank or discriminate between outcomes. It may need retraining or feature engineering. "
+        elif power < 70:
+            conclusion += "The model has moderate predictive power. It performs reasonably but could benefit from improvements. "
+        elif power < 90:
+            conclusion += "✅ The model has strong predictive power, suggesting effective ranking of predictions. "
+        else:
+            conclusion += "✅ The model has excellent predictive power, showing it ranks outcomes very effectively. "
+
+        # Accuracy interpretation
+        if accuracy < 0:
+            conclusion += "🚫 The model has negative naïve accuracy, which is highly problematic. Its probability estimates are worse than random — likely due to severe miscalibration or label errors. "
+        elif accuracy < 70:
+            conclusion += "⚠️ The model has poor naïve accuracy. Estimated probabilities deviate significantly from observed outcomes. Calibration is recommended. "
+        elif accuracy < 90:
+            conclusion += "The model has acceptable naïve accuracy, though some calibration error exists. "
+        elif accuracy <= 100:
+            conclusion += "✅ The model is well-calibrated, with high naïve accuracy suggesting predicted probabilities align closely with observed outcomes. "
+        else:
+            conclusion += "⚠️ Accuracy exceeds 100%, which may indicate a computation error. "
+        conclusion = conclusion.strip()
 
         if (p_value == True):
             return {
                 'power': power,
                 'accuracy': accuracy,
+                'conclusion': conclusion,
             }
 
         if (final_value == True):
             return (power, accuracy)
 
         return dff
+
 
     @staticmethod
     def calinski_harabasz(y_pred:list, bins:list):

@@ -2,6 +2,7 @@ import sys
 import os
 import warnings
 import itertools
+from typing import Literal, Optional
 
 import pandas as pd
 import numpy as np
@@ -41,7 +42,11 @@ class IV_Discriminant():
 
     def value(self, col:str=None, final_value:bool=False):
         if col is None:
-            raise ValueError("A column (col) must be provided")
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
         
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return None
@@ -144,7 +149,11 @@ class KS_Discriminant():
 
     def value(self, col:str=None, final_value:bool=False, sort:str=None, bad_:int=1, plot_:bool=False):
         if col is None:
-            raise ValueError("A column (col) must be provided")
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
         
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return None
@@ -229,7 +238,11 @@ class KS_Discriminant():
 
     def plot(self, col:str=None, sort:str=None, graph_library:str='plotly', width:int=900, height:int=450):
         if col is None:
-            raise ValueError("A column (col) must be provided")
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
         
         df_ks, volumetry, KS = self.value(col=col, sort=sort, plot_=True)
         
@@ -289,7 +302,13 @@ class PSI_Discriminant():
 
 
     def value(self, col:str=None, percent_shift:float=0.8, is_continuous:bool=False, max_n_bins:int=10, final_value:bool=False):
-        # Split data using iloc
+        if col is None:
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
+
         split_index = int(len(self.df) * percent_shift)
         self.train = self.df.iloc[:split_index]
         self.test = self.df.iloc[split_index:]
@@ -361,6 +380,13 @@ class PSI_Discriminant():
     
 
     def plot(self, col:str=None, percent_shift:float=0.8, discrete:bool=False, max_n_bins:int=10, width:int=900, height:int=450):
+        if col is None:
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
+
         dff = self.value(col=col, percent_shift=percent_shift, max_n_bins=max_n_bins)
         psi = dff.loc['Total','ANDERSON (2022)']
         if dff is None: 
@@ -429,6 +455,13 @@ class GINI_LORENZ_Discriminant():
 
 
     def value(self, col:str=None, is_continuous:bool=False, max_n_bins:int=30, force_discrete:bool=False, percent:bool=True, final_value:bool=False):
+        if col is None:
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
+
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return None
 
@@ -512,12 +545,20 @@ class GINI_LORENZ_Discriminant():
         return gini_df
     
 
-    def plot(self, col:str=None, type:str='lorenz gini', max_n_bins:int=30, force_discrete:bool=False, width:int=700, height:int=600):
-        type = type.strip().lower()
+    def plot(self, col:str=None, method:Literal['gini','cap','lift']='lorenz gini', 
+             max_n_bins:int=30, force_discrete:bool=False, width:int=700, height:int=600):
+        if col is None:
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
+
+        method = method.strip().lower()
         dff = self.value(col=col, max_n_bins=max_n_bins, force_discrete=force_discrete, percent=True)
         D = (100 - dff['Product'].sum()).round(3)
 
-        if ('lor' in type) or ('gini' in type) or ('roc' in type) or ('auc' in type):
+        if ('lor' in method) or ('gini' in method) or ('roc' in method) or ('auc' in method):
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=[0]+dff['Good Cumul.'].to_list(), y=[0]+dff['Bad Cumul.'].to_list(),
@@ -536,7 +577,7 @@ class GINI_LORENZ_Discriminant():
                 width=width, height=height
             )
 
-        if ('cap' in type) or ('accur' in type) or ('ratio' in type):
+        if ('cap' in method) or ('accur' in method) or ('ratio' in method):
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=[0]+dff['Total Cumul.'].to_list(), y=[0]+dff['Bad Cumul.'].to_list(),
@@ -555,7 +596,7 @@ class GINI_LORENZ_Discriminant():
                 width=width, height=height
             )
 
-        if ('lift' in type):
+        if ('lift' in method):
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=dff['Total Cumul.'].to_list(), y=dff['Lift'].to_list(),
@@ -570,7 +611,8 @@ class GINI_LORENZ_Discriminant():
                 width=width, height=height
             )
 
-        return fig
+        try: return fig
+        except: return None
 
 
 
@@ -584,6 +626,13 @@ class CHI2_Discriminant():
 
 
     def value(self, col:str=None, percent_shift:float=None, final_value:bool=False):
+        if col is None:
+            if ('score' in self.features):
+                col = 'score'
+            else:
+                try: col = random.choice(self.features)
+                except: raise ValueError("A column (col) must be provided")
+
         self.observed = df[df.index <= (len(df)*percent_shift)]
         self.expected = df[df.index > (len(df)*percent_shift)]
 

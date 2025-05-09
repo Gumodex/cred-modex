@@ -20,8 +20,11 @@ df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\t
 
 
 class CredLab:
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None, time_column:str=None,
-                 test_size:float=0.2, split_type:str='random', seed:int=42):
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:Union[list[str],str]=None, time_column:str=None,
+                 test_size:float=0.1, split_type:str='random', seed:int=42):
+
+        if isinstance(features,str):
+            features = [features]
 
         if df is None:
             raise ValueError("DataFrame cannot be None")
@@ -137,10 +140,14 @@ class CredLab:
         
         base_model = BaseModel_(
             model=model, treatment=treatment, df=self.df, doc=doc, seed=seed,
-            features=self.features, target=self.target, predict_type='prob', time_col=time_col
+            features=self.features, target=self.target, predict_type='prob', time_col=time_col,
+            name=name
             )
         self.models[name] = base_model
         setattr(self, name, base_model)
+
+        #self.model is always the last model added!
+        self.model = base_model
         
         return model
 
@@ -185,6 +192,27 @@ class CredLab:
             return Correlation(df, self.target, self.features)
 
 
+    def eval_goodness_of_fit(self, method:Union[str,type]='gini', model:Union[type]=None):
+        if model is None:
+            try: model = list(self.models.items())[-1][1]
+            except: raise ModuleNotFoundError('There is no model to evaluate!')
+        
+        if isinstance(method, str): method = method.lower().strip()
+
+        if ('iv' in method) or (method == IV_Discriminant):
+            return IV_Discriminant(df=model.df, target=self.target, features=['score'])
+        
+        if ('ks' in method) or (method == KS_Discriminant):
+            return KS_Discriminant(df=model.df, target=self.target, features=['score'])
+        
+        if ('psi' in method) or (method == PSI_Discriminant):
+            return PSI_Discriminant(df=model.df, target=self.target, features=['score'])
+        
+        if ('gini' in method) or (method == GINI_LORENZ_Discriminant):
+            return GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score'])
+        
+        if ('corr' in method) or (method == Correlation):
+            return Correlation(df=model.df, target=self.target, features=['score'])
 
 
 
