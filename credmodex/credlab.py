@@ -25,7 +25,7 @@ class CredLab:
         if isinstance(features,str):
             features = [features]
 
-        if df is None:
+        if (df is None):
             raise ValueError("DataFrame cannot be None")
         self.raw_df = df
         if (not isinstance(target, str)) or (not isinstance(features, list)):
@@ -33,9 +33,11 @@ class CredLab:
         # The self.df contains only the columns target + features
         features = [f for f in features if f in df.columns and f != target and f != time_column]
 
-        if time_column: self.df = df[features + [target] + [time_column]] if features and target else None
-        else: self.df = df[features + [target]] if features and target else None
-        if self.df is None:
+        if time_column:
+            self.df = df[features + [target] + [time_column]] if features and target else None
+        else:
+            self.df = df[features + [target]] if features and target else None
+        if (self.df is None):
             raise ValueError("Both target and [features] must be provided.")
         
         self.target = target
@@ -127,8 +129,6 @@ class CredLab:
 
     def add_model(self, model:type=None, treatment:type=None, name:str=None, doc:str=None, time_col:str=None, seed:int=42):
 
-        if model is None:
-            raise ValueError("Model cannot be None. Input a str or a Model class.")
         if df is None:
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if name is None:
@@ -191,7 +191,7 @@ class CredLab:
             return Correlation(df, self.target, self.features)
 
 
-    def eval_goodness_of_fit(self, method:Union[str,type]='gini', model:Union[type]=None):
+    def eval_goodness_of_fit(self, method:Union[str,type]='gini', model:Union[type]=None,):
         if model is None:
             try: model = list(self.models.items())[-1][1]
             except: raise ModuleNotFoundError('There is no model to evaluate!')

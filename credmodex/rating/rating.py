@@ -2,6 +2,8 @@ import sys
 import os
 import warnings
 import inspect
+from typing import Union
+import re
 
 import pandas as pd
 import numpy as np
@@ -10,9 +12,8 @@ import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 
-from optbinning import OptimalBinning
-
 sys.path.append(os.path.abspath('.'))
+from credmodex.rating.calinski_harabasz_binning import CH_Binning
 from credmodex.discriminancy import *
 from credmodex.models import *
 from credmodex.utils import *
@@ -20,8 +21,18 @@ from credmodex.utils import *
 
 
 class Rating():
-    def __init__(self, model:type=None, df:pd.DataFrame=None, type:str='score', optb_type:str='transform', doc:str=None, 
-                 features:list[str]=None, target:str=None, time_col:str=None, suppress_warnings:bool=False, name:str=None):
+    def __init__(self, model:type=None, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, time_col:str=None, 
+                 type:str='score', optb_type:str='transform', doc:str=None, suppress_warnings:bool=False, name:str=None):
+        
+        if isinstance(features,str):
+            features = [features]
+        if (features is None):
+            features = df.columns.to_list()
+        if (df is None):
+            raise ValueError("DataFrame cannot be None. Input a DataFrame.")
+        if (model is None):
+            model = CH_Binning(max_n_bins=15)
+
         self.model = model
         self.df = df
         self.doc = doc
@@ -62,6 +73,9 @@ class Rating():
             self.train = self.df[self.df['split'] == 'train']
             self.test = self.df[self.df['split'] == 'test']
 
+            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col]]
+            self.features = transformed_features
+
             self.X_train = self.df[self.df['split'] == 'train'][self.features]
             self.X_test = self.df[self.df['split'] == 'test'][self.features]
             self.y_train = self.df[self.df['split'] == 'train'][self.target]
@@ -75,6 +89,9 @@ class Rating():
             self.train = self.df
             self.test = self.df
 
+            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col]]
+            self.features = transformed_features
+
             self.X_train = self.df[self.features]
             self.X_test = self.df[self.features]
             self.y_train = self.df[self.target]
@@ -82,7 +99,14 @@ class Rating():
 
 
     def fit_predict_score(self):
-        # Fit the binning model
+        
+        if ('score' not in self.df.columns):
+            if not getattr(self, 'suppress_warnings', False):
+                warnings.warn(
+                    '``score`` must be provided in df.columns',
+                    category=UserWarning
+                )
+
         self.model.fit(self.train['score'], self.y_train)
 
         optb_type = self.optb_type.lower().strip() if isinstance(self.optb_type, str) else None
@@ -98,24 +122,27 @@ class Rating():
 
             try:
                 bin_table = self.model.binning_table.build()
-                bins = list(reversed(bin_table['Bin'].tolist()))[3:]
+                bins = list(bin_table['Bin'].unique())
             except Exception as e:
                 raise RuntimeError("Failed to build binning table.") from e
 
-            self.bins = bins
-            self.map_to_alphabet_(bins)
+            bin_map = Rating.map_to_alphabet_(bins)
+            self.bins = bin_map
+            self.df['rating'] = self.df['rating'].map(bin_map)
             return
 
         if optb_type is None:
             return
         raise ValueError(f"Unknown optb_type: {self.optb_type}")
     
-
-    def map_to_alphabet_(self, lst):
-        result = {num: chr(65 + index) for index, num in enumerate(lst)}
-        self.df['rating'] = self.df['rating'].map(result).fillna('-')
-        return result
         
+    @staticmethod
+    def map_to_alphabet_(bin_list):
+        valid_bins = [b for b in bin_list if b not in ['Special', 'Missing', '']]
+        sorted_bins = sorted(valid_bins, key=lambda x: float(x.split(',')[1].replace(')', '').replace('inf', '1e10')), reverse=True)
+        bin_map = {bin_label: chr(65 + i) for i, bin_label in enumerate(sorted_bins)}
+        return bin_map
+                
 
     def plot_stability_in_time(self, initial_date:str=None, upto_date:str=None, col:str='rating', 
             agg_func:str='mean', percent:bool=True, width:int=800, color_seq:px.colors=px.colors.sequential.Turbo, **kwargs):

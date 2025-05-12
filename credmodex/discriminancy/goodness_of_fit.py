@@ -15,6 +15,12 @@ __all__ = [
 
 class GoodnessFit:
     @staticmethod
+    def ensure_prob_of_class_1(y_pred, prob_base_0=True):
+        y_pred = np.array(y_pred)
+        return 1 - y_pred if prob_base_0 else y_pred
+
+
+    @staticmethod
     def r2(y_true:list, y_pred:list, **kwargs):
         value = sklearn.metrics.r2_score(y_true=y_true, y_pred=y_pred, **kwargs)
         return round(value,4)
@@ -31,7 +37,7 @@ class GoodnessFit:
     
 
     @staticmethod
-    def chi2(observed:list, expected:list, alpha:float=0.05, p_value:bool=False):
+    def chi2(observed:list, expected:list, alpha:float=0.05, info:bool=False):
         observed = np.array(observed)
         expected = np.array(expected)
         chi2_statistic = np.sum((observed - expected)**2 / expected)
@@ -45,7 +51,7 @@ class GoodnessFit:
         else:
             conclusion = 'Followed Expected Distribution'
 
-        if (p_value == True):
+        if (info == True):
             return {
                 "chi2": float(round(chi2_statistic,4)),
                 "p value": float(p_value_),
@@ -58,7 +64,8 @@ class GoodnessFit:
 
 
     @staticmethod
-    def hosmer_lemeshow(y_true:list, y_pred:list, g:int=10, p_value:bool=False):
+    def hosmer_lemeshow(y_true:list, y_pred:list, g:int=10, info:bool=False, prob_base_0:bool=True):
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
 
         data = pd.DataFrame({'y': y_true, 'p': y_pred})
         data['group'] = pd.qcut(data['p'], q=g, duplicates='drop')
@@ -82,7 +89,7 @@ class GoodnessFit:
         else:
             conclusion = 'Well Ajusted'
 
-        if (p_value == True):
+        if (info == True):
             return {
                 'HL': float(round(hl_statistic,4)),
                 'p value': float(p_value_),
@@ -109,7 +116,9 @@ class GoodnessFit:
 
 
     @staticmethod
-    def deviance(y_true:list, y_pred:list, return_individual:bool=False):
+    def deviance(y_true:list, y_pred:list, return_individual:bool=False, prob_base_0:bool=True):
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
+
         log_likelihoods = GoodnessFit.log_likelihood(y_true, y_pred, return_individual=True)
         deviance_residuals = np.sqrt(2 * -log_likelihoods)
         value = np.sum(deviance_residuals ** 2)
@@ -121,14 +130,16 @@ class GoodnessFit:
 
 
     @staticmethod
-    def aic(y_true:list, y_pred:list, n_features:int):
+    def aic(y_true:list, y_pred:list, n_features:int, prob_base_0:bool=True):
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
         log_likelihood = GoodnessFit.log_likelihood(y_true, y_pred)
         value = 2 * n_features - 2 * log_likelihood
         return float(round(value,4))
 
 
     @staticmethod
-    def aic_small_sample(y_true:list, y_pred:list, n_features:int, sample_size:int):
+    def aic_small_sample(y_true:list, y_pred:list, n_features:int, sample_size:int, prob_base_0:bool=True):
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
         aic = GoodnessFit.aic(y_true, y_pred, n_features=n_features)
         if sample_size <= n_features + 1:
             raise ValueError(f'"Sample Size" must be at least {n_features+1}')
@@ -165,14 +176,15 @@ class GoodnessFit:
     
 
     @staticmethod
-    def bic(y_true:list, y_pred:list, n_features:int, sample_size:int):
+    def bic(y_true:list, y_pred:list, n_features:int, sample_size:int, prob_base_0:bool=True):
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
         ll = GoodnessFit.log_likelihood(y_true, y_pred)
         value = np.log(sample_size) * n_features - 2 * ll
         return float(round(value, 4))
 
 
     @staticmethod
-    def likelihood_ratio_test(loglike_simple:float, loglike_complex:float, added_params:int, alpha:float=0.05, p_value:bool=False):
+    def likelihood_ratio_test(loglike_simple:float, loglike_complex:float, added_params:int, alpha:float=0.05, info:bool=False):
         value = -2 * (loglike_simple - loglike_complex)
         p_value_ = 1 - scipy.stats.chi2.cdf(value, added_params)
         reject_null = bool(p_value_ < alpha)
@@ -181,7 +193,7 @@ class GoodnessFit:
         else:
             conclusion = 'No Statistical Improvement'
 
-        if (p_value == True):
+        if (info == True):
             return {
                 "LRT statistic": round(value,4),
                 "p value": round(p_value_,4),
@@ -193,7 +205,7 @@ class GoodnessFit:
     
 
     @staticmethod
-    def wald_test(beta:float, std_error:float, degrees_freedom:int=1, alpha:float=0.05, null_value:float=0, p_value:bool=False):
+    def wald_test(beta:float, std_error:float, degrees_freedom:int=1, alpha:float=0.05, null_value:float=0, info:bool=False):
         value = ((beta - null_value) / std_error) ** 2
         p_value_ = 1 - scipy.stats.chi2.cdf(value, degrees_freedom)
         reject_null = bool(p_value_ < alpha)
@@ -202,7 +214,7 @@ class GoodnessFit:
         else:
             conclusion = 'Not Informative Variable'
 
-        if (p_value == True):
+        if (info == True):
             return {
                 "Wald statistic": round(value,4),
                 "p value": round(p_value_,4),
@@ -215,7 +227,7 @@ class GoodnessFit:
 
     @staticmethod
     def rao_score_test(y_pred:pd.DataFrame, y_true:pd.Series, X_candidate:pd.Series, 
-                       family:str='normal', phi:float=None, alpha:float=0.05, p_value:bool=False):
+                       family:str='normal', phi:float=None, alpha:float=0.05, info:bool=False):
         family = family.lower()
         if ('binom' in family):
             var = y_pred * (1 - y_pred)
@@ -247,7 +259,7 @@ class GoodnessFit:
         else:
             conclusion = 'Variable Do Not Improve the Model'
 
-        if (p_value == True):
+        if (info == True):
             return {
                 "Score_Chi2": float(round(value,4)),
                 "p_value": float(round(p_value_,4)),
@@ -259,9 +271,10 @@ class GoodnessFit:
     
 
     @staticmethod
-    def deviance_odds(y_true:list, y_pred:list, final_value:bool=True, p_value:bool=False):
+    def deviance_odds(y_true:list, y_pred:list, final_value:bool=True, info:bool=False, prob_base_0:bool=True):
         assert set(np.unique(y_true)).issubset({0, 1})
         assert (y_pred.min() >= 0) and (y_pred.min() <= 1)
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
 
         dff = pd.DataFrame({
             'y_true': y_true,
@@ -316,7 +329,7 @@ class GoodnessFit:
             conclusion += "⚠️ Accuracy exceeds 100%, which may indicate a computation error. "
         conclusion = conclusion.strip()
 
-        if (p_value == True):
+        if (info == True):
             return {
                 'power': power,
                 'accuracy': accuracy,
@@ -363,7 +376,8 @@ class GoodnessFit:
 
 
     @staticmethod
-    def gini_variance(y_true:list, y_pred:list, p_value:bool=False, **kwargs):
+    def gini_variance(y_true:list, y_pred:list, info:bool=False, prob_base_0:bool=True, **kwargs):
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
         dff = pd.DataFrame({'y_true':y_true, 'y_score':y_pred})
         dff = dff.sort_values(by='y_score', ascending=False).reset_index(drop=True)
 
@@ -394,7 +408,7 @@ class GoodnessFit:
         gini_lower = gini - 1.96 * np.sqrt(engelmann)
         gini_upper = gini + 1.96 * np.sqrt(engelmann)
 
-        if (p_value == True):
+        if (info == True):
             return {
                 "AUC": float(round(auc,4)),
                 "Gini": float(round(gini,4)),
@@ -425,7 +439,7 @@ if __name__ == '__main__':
     df = pd.DataFrame(df)
     print(
 
-        GoodnessFit.likelihood_ratio_test(-50, -47, 2, p_value=True),
-        GoodnessFit.wald_test(-50, -47, 2, p_value=True),
+        GoodnessFit.likelihood_ratio_test(-50, -47, 2, info=True),
+        GoodnessFit.wald_test(-50, -47, 2, info=True),
         # GoodnessFit.likelihood_ratio_test(df[df['Grade'] == 0]['Y'], np.random.random(95+309), n_features=2, sample_size=95),
     )

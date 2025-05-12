@@ -56,6 +56,13 @@ class CH_Binning():
                 setattr(self, attr, getattr(self.model, attr))
 
 
+    @staticmethod
+    def map_to_alphabet_(self, lst):
+        result = {num: chr(65 + index) for index, num in enumerate(lst)}
+        self.df['rating'] = self.df['rating'].map(result).fillna('-')
+        return result
+
+
 
 
 
