@@ -1,10 +1,9 @@
-import pandas as pd
 import sys
 import os
 from optbinning import OptimalBinning
 
-sys.path.append(os.path.abspath('.'))
-from credmodex.discriminancy import GoodnessFit
+import pandas as pd
+import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
@@ -28,7 +27,7 @@ class CH_Binning():
             model_.fit(x, y)
             fitted_ = model_.transform(x, metric=metric)
 
-            new_ch_model_ = GoodnessFit.calinski_harabasz(y_pred=x, bins=fitted_)
+            new_ch_model_ = CH_Binning.calinski_harabasz(y_pred=x, bins=fitted_)
             
             if (new_ch_model_ > self.ch_model_):
                 self.ch_model_ = new_ch_model_
@@ -61,6 +60,40 @@ class CH_Binning():
         result = {num: chr(65 + index) for index, num in enumerate(lst)}
         self.df['rating'] = self.df['rating'].map(result).fillna('-')
         return result
+
+
+    @staticmethod
+    def calinski_harabasz(y_pred:list, bins:list):
+        df = {
+            "y_pred": y_pred,
+            "bins": bins
+        }
+        df = pd.DataFrame(df)
+        
+        overall_mean = df['y_pred'].mean()
+        n = len(df)
+        g = df['bins'].nunique()
+
+        bss = (
+            df.groupby('bins')['y_pred']
+            .apply(lambda x: len(x) * (x.mean() - overall_mean) ** 2)
+            .sum()
+        )
+
+        wss = (
+            df.groupby('bins')['y_pred']
+            .apply(lambda x: ((x - x.mean()) ** 2).sum())
+            .sum()
+        )
+
+        if ((wss / (n - g)) == 0):
+            # print(f'(wss / (n - g)) == 0 | (wss = {wss}) (n = {n}) (g = {g}) | Optimum Might Have Been Achieved')
+            return np.inf
+
+        ch = (bss / (g - 1)) / (wss / (n - g))
+        
+        return float(round(ch,4))
+
 
 
 

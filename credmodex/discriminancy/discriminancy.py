@@ -3,6 +3,7 @@ import os
 import warnings
 import itertools
 from typing import Literal, Optional
+import random
 
 import pandas as pd
 import numpy as np
@@ -19,6 +20,7 @@ import statsmodels.stats.outliers_influence
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.utils.design import *
+from credmodex.rating import *
 
 df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\test\df.csv')
 
@@ -91,7 +93,7 @@ class IV_Discriminant():
 
     def table(self):
         columns = self.df.columns.to_list()
-        columns = [col for col in columns if col != self.target]
+        columns = [col for col in columns if (col != self.target) and (col in self.features)]
 
         iv_df = pd.DataFrame(
             index=columns,
@@ -198,7 +200,7 @@ class KS_Discriminant():
 
     def table(self):
         columns = self.df.columns.to_list()
-        columns = [col for col in columns if col != self.target]
+        columns = [col for col in columns if (col != self.target) and (col in self.features)]
         KS_Value = pd.DataFrame(
             index=columns,
             columns=['KS']
@@ -298,6 +300,8 @@ class PSI_Discriminant():
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
         self.df = df
         self.target = target
+        if isinstance(features,str):
+            features = [features]
         self.features = features
 
 
@@ -318,7 +322,7 @@ class PSI_Discriminant():
 
         if (is_continuous) or (self.df[col].dtype == 'float'):
             # Create bins based on training data
-            binning = OptimalBinning(name=col, dtype="numerical", max_n_bins=max_n_bins)
+            binning = CH_Binning(max_n_bins=max_n_bins)
             binning.fit(self.train[col].dropna(), y=self.train[self.train[col].notna()][self.target])
 
             # Apply binning to train and test sets
@@ -362,7 +366,7 @@ class PSI_Discriminant():
 
     def table(self, percent_shift:float=0.8, max_n_bins:int=10):
         columns = self.df.columns.to_list()
-        columns = [col for col in columns if col != self.target]
+        columns = [col for col in columns if (col != self.target) and (col in self.features)]
 
         psi_df = pd.DataFrame(
             index=columns,
@@ -391,25 +395,6 @@ class PSI_Discriminant():
         psi = dff.loc['Total','ANDERSON (2022)']
         if dff is None: 
             return
-        
-        if (discrete) or (self.df[col].dtype in {'float', 'int'}):
-            dff = dff[dff.index != 'Total']
-
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x = dff.index, y = dff['Reference'],
-                name = f'Train | {100* (percent_shift):.1f}%',
-                marker=dict(color='rgb(218, 139, 192)')
-            ))
-            fig.add_trace(go.Bar(
-                x = dff.index, y = dff['Posterior'],
-                name = f'Test | {100* (1-percent_shift):.1f}%',
-                marker=dict(color='rgb(170, 98, 234)')
-            ))
-
-            plotly_main_layout(fig, title='Population Stability Analysis', x=col, y='freq', width=width, height=height)
-
-            return fig
 
         try:
             fig = go.Figure()
@@ -440,8 +425,28 @@ class PSI_Discriminant():
 
             return fig
 
-        except:
-            return
+        except: 
+            try:
+                if (discrete) or (pd.api.types.is_numeric_dtype(self.df[col])):
+                    dff = dff[dff.index != 'Total']
+
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x = dff.index, y = dff['Reference'],
+                        name = f'Train | {100* (percent_shift):.1f}%',
+                        marker=dict(color='rgb(218, 139, 192)')
+                    ))
+                    fig.add_trace(go.Bar(
+                        x = dff.index, y = dff['Posterior'],
+                        name = f'Test | {100* (1-percent_shift):.1f}%',
+                        marker=dict(color='rgb(170, 98, 234)')
+                    ))
+
+                    plotly_main_layout(fig, title=f'Population Stability Analysis | PSI = {psi}', x=col, y='freq', width=width, height=height)
+
+                    return fig
+            except:
+                return
 
 
 
@@ -466,7 +471,7 @@ class GINI_LORENZ_Discriminant():
             return None
 
         if (is_continuous) or (self.df[col].dtype == 'float') and (not force_discrete):
-            binning = OptimalBinning(name=col, dtype="numerical", max_n_bins=max_n_bins)
+            binning = CH_Binning(max_n_bins=max_n_bins)
             binning.fit(self.df[col].dropna(), y=self.df[self.df[col].notna()][self.target])
 
             binning = binning.transform(self.df[col], metric="bins")
@@ -529,6 +534,7 @@ class GINI_LORENZ_Discriminant():
         columns = [
             col for col in self.df.columns
             if col != self.target and not pd.api.types.is_datetime64_any_dtype(self.df[col])
+            and (col in self.features)
         ]
 
         gini_df = pd.DataFrame(

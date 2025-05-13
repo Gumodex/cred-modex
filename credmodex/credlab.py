@@ -2,6 +2,7 @@ import sys
 import os
 import warnings
 from typing import Union
+from pprint import pprint
 
 import pandas as pd
 import numpy as np
@@ -191,27 +192,48 @@ class CredLab:
             return Correlation(df, self.target, self.features)
 
 
-    def eval_goodness_of_fit(self, method:Union[str,type]='gini', model:Union[type]=None,):
+    def eval_goodness_of_fit(self, method:Union[str,type]='gini', model:Union[type]=None,
+                             comparinson_cols:list[str]=[]):
         if model is None:
-            try: model = list(self.models.items())[-1][1]
+            try: model = self.model
             except: raise ModuleNotFoundError('There is no model to evaluate!')
         
         if isinstance(method, str): method = method.lower().strip()
 
-        if ('iv' in method) or (method == IV_Discriminant):
-            return IV_Discriminant(df=model.df, target=self.target, features=['score'])
-        
-        if ('ks' in method) or (method == KS_Discriminant):
-            return KS_Discriminant(df=model.df, target=self.target, features=['score'])
-        
-        if ('psi' in method) or (method == PSI_Discriminant):
-            return PSI_Discriminant(df=model.df, target=self.target, features=['score'])
-        
-        if ('gini' in method) or (method == GINI_LORENZ_Discriminant):
-            return GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score'])
-        
-        if ('corr' in method) or (method == Correlation):
-            return Correlation(df=model.df, target=self.target, features=['score'])
+        eval_methods = {
+            'iv': IV_Discriminant,
+            'ks': KS_Discriminant,
+            'psi': PSI_Discriminant,
+            'gini': GINI_LORENZ_Discriminant,
+            'corr': Correlation,
+            'good': GoodnessFit,
+        }
+
+        # Single method execution
+        if method != 'relatory':
+            for key, func in eval_methods.items():
+                if (key in method) or (method == func):
+                    try: return func(df=model.df, target=self.target, features=['score'])
+                    except: return func
+            
+        if ('relatory' in method):
+            for func in [KS_Discriminant, PSI_Discriminant, GINI_LORENZ_Discriminant]:
+                try: func(df=model.df, target=self.target, features=['score']).plot().show()
+                except: ...
+            print('\n=== Kolmogorov Smirnov ===')
+            print(KS_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print('\n=== Population Stability ===')
+            print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print('\n=== Gini Lorenz ===')
+            print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print('\n=== Information Value ===')
+            print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print('\n=== Hosmer Lemeshow ===') 
+            pprint(GoodnessFit.hosmer_lemeshow(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
+            print('\n=== Deviance Odds ===') 
+            pprint(GoodnessFit.deviance_odds(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
+            print('\n=== Gini Variance ===') 
+            pprint(GoodnessFit.gini_variance(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
 
 
 

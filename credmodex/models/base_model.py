@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.linear_model import LogisticRegression
 
-from credmodex.rating import *
-
+from credmodex.rating import Rating
 
 
 class BaseModel:
@@ -23,6 +22,8 @@ class BaseModel:
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if (model is None):
             model = LogisticRegression(max_iter=5000, solver='saga')
+        if (treatment is None):
+            treatment = lambda df: df
         
         self.seed = seed
         np.random.seed(self.seed)
@@ -39,9 +40,6 @@ class BaseModel:
 
         self.ratings = {}
 
-        self.train_test_()
-        self.fit_predict()
-
         if callable(self.model):
             self.model_code = inspect.getsource(self.model)
         else:
@@ -56,6 +54,10 @@ class BaseModel:
             self.doc = inspect.getsource(self.doc)
         else:
             self.doc = None
+
+        self.train_test_()
+        self.fit_predict()
+
 
 
     def train_test_(self):

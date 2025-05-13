@@ -14,8 +14,6 @@ import plotly.graph_objects as go
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating.calinski_harabasz_binning import CH_Binning
-from credmodex.discriminancy import *
-from credmodex.models import *
 from credmodex.utils import *
 
 
@@ -106,6 +104,9 @@ class Rating():
                     '``score`` must be provided in df.columns',
                     category=UserWarning
                 )
+
+        if callable(self.model):
+            self.df = self.model(self.df)
 
         self.model.fit(self.train['score'], self.y_train)
 

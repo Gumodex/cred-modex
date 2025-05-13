@@ -17,20 +17,20 @@ class Correlation:
 
 
     @staticmethod
-    def pearson(x:list, y:list, p_value:bool=False, **kwargs):
+    def pearson(x:list, y:list, info:bool=False, **kwargs):
         value = scipy.stats.pearsonr(x=x, y=y, **kwargs)
         
-        if (p_value == True):
+        if (info == True):
             return value.statistic, value.pvalue
         
         return value.statistic
     
 
     @staticmethod
-    def spearman(x:list, y:list, p_value:bool=False, **kwargs):
+    def spearman(x:list, y:list, info:bool=False, **kwargs):
         value = scipy.stats.spearmanr(a=x, b=y, **kwargs)
         
-        if (p_value == True):
+        if (info == True):
             return value.statistic, value.pvalue
         
         return value.statistic
