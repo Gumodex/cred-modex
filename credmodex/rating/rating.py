@@ -107,6 +107,7 @@ class Rating():
 
         if callable(self.model):
             self.df = self.model(self.df)
+            return
 
         self.model.fit(self.train['score'], self.y_train)
 
@@ -315,8 +316,8 @@ class Rating():
             upto_date = pd.to_datetime(upto_date)
             dff = dff[dff[self.time_col] <= upto_date]
 
-
-        ratings = list(reversed(sorted(dff[col].unique())))
+        try: ratings = list(reversed(sorted(dff[col].unique())))
+        except: raise TypeError('``rating`` column might have nan elements (not supported)')
         sample_points = [i / (len(ratings) - 1) for i in range(len(ratings))]
         colors = list(reversed(plotly.colors.sample_colorscale(color_seq, sample_points)))
 

@@ -397,6 +397,8 @@ class PSI_Discriminant():
             return
 
         try:
+            if (discrete == True):
+                raise TypeError
             fig = go.Figure()
             train_plot = ff.create_distplot(
                     hist_data=[self.train[col].dropna()],
@@ -427,7 +429,7 @@ class PSI_Discriminant():
 
         except: 
             try:
-                if (discrete) or (pd.api.types.is_numeric_dtype(self.df[col])):
+                if (discrete) or (~pd.api.types.is_numeric_dtype(self.df[col])):
                     dff = dff[dff.index != 'Total']
 
                     fig = go.Figure()

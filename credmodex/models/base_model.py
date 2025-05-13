@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import inspect
+from typing import Union
 import warnings
+from pprint import pprint
 
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
@@ -9,6 +11,7 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 
 from credmodex.rating import Rating
+from credmodex.discriminancy import *
 
 
 class BaseModel:
@@ -145,3 +148,42 @@ class BaseModel:
         self.rating = rating
         
         return model
+    
+
+    def eval_goodness_of_fit(self, method:Union[str,type]='gini', rating:Union[type]=None,
+                             comparinson_cols:list[str]=[]):
+        if rating is None:
+            try: rating = self.rating
+            except: raise ModuleNotFoundError('There is no model to evaluate!')
+        
+        if isinstance(method, str): method = method.lower().strip()
+
+        eval_methods = {
+            'iv': IV_Discriminant,
+            'ks': KS_Discriminant,
+            'psi': PSI_Discriminant,
+            'gini': GINI_LORENZ_Discriminant,
+            'corr': Correlation,
+            'good': GoodnessFit,
+        }
+
+        # Single method execution
+        if method != 'relatory':
+            for key, func in eval_methods.items():
+                if (key in method) or (method == func):
+                    try: return func(df=rating.df, target=self.target, features=['rating'])
+                    except: return func
+            
+        if ('relatory' in method):
+            self.rating.plot_gains_per_risk_group().show()
+            self.rating.plot_stability_in_time().show()
+            try: KS_Discriminant(df=rating.df, target=self.target, features=['rating']).plot().show()
+            except: ...
+            try: PSI_Discriminant(df=rating.df, target=self.target, features=['rating']).plot().show()
+            except: ...
+            print('\n=== Kolmogorov Smirnov ===')
+            print(KS_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print('\n=== Population Stability ===')
+            print(PSI_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print('\n=== Information Value ===')
+            print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())

@@ -306,27 +306,27 @@ class GoodnessFit:
         conclusion = ''
         # Power interpretation
         if power < 0:
-            conclusion += "⚠️ The model has negative predictive power, meaning it ranks outcomes worse than random. This suggests either a serious model flaw or a reversal in prediction logic (e.g., predicting the opposite class). "
+            conclusion += "<!> The model has negative predictive power, meaning it ranks outcomes worse than random. This suggests either a serious model flaw or a reversal in prediction logic (e.g., predicting the opposite class). "
         elif power < 50:
-            conclusion += "⚠️ The model has weak predictive power, indicating limited ability to rank or discriminate between outcomes. It may need retraining or feature engineering. "
+            conclusion += "<!> The model has weak predictive power, indicating limited ability to rank or discriminate between outcomes. It may need retraining or feature engineering. "
         elif power < 70:
             conclusion += "The model has moderate predictive power. It performs reasonably but could benefit from improvements. "
         elif power < 90:
-            conclusion += "✅ The model has strong predictive power, suggesting effective ranking of predictions. "
+            conclusion += "<o> The model has strong predictive power, suggesting effective ranking of predictions. "
         else:
-            conclusion += "✅ The model has excellent predictive power, showing it ranks outcomes very effectively. "
+            conclusion += "<o> The model has excellent predictive power, showing it ranks outcomes very effectively. "
 
         # Accuracy interpretation
         if accuracy < 0:
-            conclusion += "🚫 The model has negative naïve accuracy, which is highly problematic. Its probability estimates are worse than random — likely due to severe miscalibration or label errors. "
+            conclusion += "<x> The model has negative naïve accuracy, which is highly problematic. Its probability estimates are worse than random — likely due to severe miscalibration or label errors. "
         elif accuracy < 70:
-            conclusion += "⚠️ The model has poor naïve accuracy. Estimated probabilities deviate significantly from observed outcomes. Calibration is recommended. "
+            conclusion += "<!> The model has poor naïve accuracy. Estimated probabilities deviate significantly from observed outcomes. Calibration is recommended. "
         elif accuracy < 90:
             conclusion += "The model has acceptable naïve accuracy, though some calibration error exists. "
         elif accuracy <= 100:
-            conclusion += "✅ The model is well-calibrated, with high naïve accuracy suggesting predicted probabilities align closely with observed outcomes. "
+            conclusion += "<o> The model is well-calibrated, with high naïve accuracy suggesting predicted probabilities align closely with observed outcomes. "
         else:
-            conclusion += "⚠️ Accuracy exceeds 100%, which may indicate a computation error. "
+            conclusion += "<!> Accuracy exceeds 100%, which may indicate a computation error. "
         conclusion = conclusion.strip()
 
         if (info == True):
