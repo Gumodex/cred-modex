@@ -187,7 +187,7 @@ class CredLab:
 
 
     def eval_goodness_of_fit(self, method:Union[str,type]='gini', model:Union[type]=None,
-                             comparinson_cols:list[str]=[]):
+                             comparison_cols:list[str]=[]):
         if model is None:
             try: model = self.model
             except: raise ModuleNotFoundError('There is no model to evaluate!')
@@ -215,13 +215,13 @@ class CredLab:
                 try: func(df=model.df, target=self.target, features=['score']).plot().show()
                 except: ...
             print('\n=== Kolmogorov Smirnov ===')
-            print(KS_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print(KS_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Population Stability ===')
-            print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Gini Lorenz ===')
-            print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Information Value ===')
-            print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+            print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Hosmer Lemeshow ===') 
             pprint(GoodnessFit.hosmer_lemeshow(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
             print('\n=== Deviance Odds ===') 
@@ -231,7 +231,7 @@ class CredLab:
 
 
     def model_relatory_notebook(self, model:Union[type]=None, rating:Union[type]=None,
-                                comparinson_cols:list[str]=[]):
+                                comparison_cols:list[str]=[]):
         if model is None:
             try: model = self.model
             except: raise ModuleNotFoundError('There is no model to evaluate!')
@@ -241,13 +241,13 @@ class CredLab:
             try: func(df=model.df, target=self.target, features=['score']).plot().show()
             except: ...
         print('\n=== Kolmogorov Smirnov ===')
-        print(KS_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+        print(KS_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Population Stability ===')
-        print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+        print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Gini Lorenz ===')
-        print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+        print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Information Value ===')
-        print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparinson_cols).table())
+        print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Hosmer Lemeshow ===') 
         pprint(GoodnessFit.hosmer_lemeshow(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
         print('\n=== Deviance Odds ===') 
@@ -271,43 +271,80 @@ class CredLab:
             try: PSI_Discriminant(df=rating.df, target=self.target, features=['rating']).plot().show()
             except: ...
             print('\n=== Kolmogorov Smirnov ===')
-            print(KS_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print(KS_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
             print('\n=== Population Stability ===')
-            print(PSI_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print(PSI_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
             print('\n=== Information Value ===')
-            print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
 
 
-    def eval_best_model(self,):
-        if (len(self.models.items()) < 2):
+    def eval_best_model(self):
+        if len(self.models.items()) < 2:
             raise TypeError('You must have at least 2 models in your project!')
         
-        results = []
+        metrics_dict = {}
 
         for model_name, model in self.models.items():
-            auc, auc_lower, auc_upper = GoodnessFit.bootstrap_auc_ci(
-                y_true=model.df[model.target],
-                y_pred=model.df['score']
-            )
+            y_true = model.df[model.target]
+            y_pred = model.df['score']
 
-            print(auc, auc_lower, auc_upper)
+            auc, auc_variance = GoodnessFit.delong_roc_variance(y_true=y_true, y_pred=y_pred)
+            gini_info = GoodnessFit.gini_variance(y_true=y_true, y_pred=y_pred, info=True)
+            gini = gini_info['Gini']
+            gini_lower = gini_info['Gini CI Lower']
+            gini_upper = gini_info['Gini CI Upper']
+            hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
+            log_likelihood = GoodnessFit.log_likelihood(y_true=y_true, y_pred=y_pred)
+            aic = GoodnessFit.aic(y_true=y_true, y_pred=y_pred, n_features=model.n_features)
+            bic = GoodnessFit.bic(y_true=y_true, y_pred=y_pred, n_features=model.n_features, sample_size=len(model.df))
+            wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
+            deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
 
-        return None
+            metrics_dict[model_name] = {
+                'AUC': auc,
+                'AUC Variance': auc_variance,
+                'Gini': gini,
+                'Gini CI Lower': gini_lower,
+                'Gini CI Upper': gini_upper,
+                'Hosmer-Lemeshow': hosmer_lemershow,
+                'Log-Likelihood': round(log_likelihood,1),
+                'AIC': round(aic,1),
+                'BIC': round(bic,1),
+                'Wald Test': wald_test,
+                'Power Odds': deviance_odds
+            }
+
+        # Create DataFrame and transpose it so model names are columns
+        dff = pd.DataFrame(metrics_dict)
+        dff.loc['Relative Likelihood',:] = GoodnessFit.relative_likelihood(aic_values=list(dff.loc['AIC',:].values))
+
+        return dff
 
 
-    def models_relatory_pdf(self, comparinson_cols:list[str]=[]):
+    def models_relatory_pdf(self, comparison_cols:list[str]=[], pdf_name='project_report'):
         if (len(self.models.items())  < 1):
             raise TypeError('There are no Models available! Please, add a Model with ``.add_model()``')
 
         pdf = PDF_Report()
+
+        try:
+            pdf.add_chapter_model_page(text='Score Evaluation')
+            
+            pdf.add_page()
+            best_model_table = self.eval_best_model()
+            pdf.add_dataframe_split(best_model_table, chunk_size=3)
+        except:
+            ...
+
+
         for model_name, model in self.models.items():
             pdf.add_chapter_model_page(text=model_name)
             pdf = model.model_relatory_pdf(
-                comparinson_cols=comparinson_cols,
+                comparison_cols=comparison_cols,
                 pdf=pdf, save_pdf=False
             )
 
-        pdf.output(f"{model_name}_report.pdf")
+        pdf.output(f"{pdf_name}.pdf")
 
 
 

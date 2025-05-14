@@ -2,6 +2,8 @@ from fpdf import FPDF
 import plotly.io as pio
 import tempfile
 import os
+from tabulate import tabulate
+import math
 
 __all__ = [
         'PDF_Report'
@@ -123,6 +125,18 @@ class PDF_Report(FPDF):
 
         self.reference_name_page = f'{text1} ({text2})'
 
+
+    def add_dataframe_split(self, df, chunk_size=3, title_prefix='Score Comparison'):
+        self.set_font('Courier', '', 8)
+        self.set_text_color(20)
+        num_chunks = math.ceil(len(df.columns) / chunk_size)
+        for i in range(num_chunks):
+            cols = df.columns[i*chunk_size : (i+1)*chunk_size]
+            chunk_df = df[cols].copy()
+
+            table = tabulate(chunk_df.reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+            self.multi_cell(0, 3, str(table))
+            self.ln()
 
 
     @staticmethod

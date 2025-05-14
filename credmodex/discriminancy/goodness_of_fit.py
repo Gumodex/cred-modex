@@ -3,11 +3,12 @@ import itertools
 import numpy as np
 import pandas as pd
 import scipy.stats
+import sklearn.linear_model
 import statsmodels.stats
+import statsmodels.api
 
 import sklearn.metrics
 import sklearn.utils
-
 
 __all__ = [
     'GoodnessFit'
@@ -149,10 +150,11 @@ class GoodnessFit:
 
 
     @staticmethod
-    def relative_likelihood(aic_values:list) -> list:
+    def relative_likelihood(aic_values: list) -> list:
         aic_min = np.min(aic_values)
-        value = np.exp((aic_min - aic_values) / 2)
-        return value
+        values = np.exp((aic_min - aic_values) / 2)
+        rounded_values = [round(val, 4) for val in values]
+        return rounded_values
 
 
     @staticmethod
@@ -206,7 +208,41 @@ class GoodnessFit:
     
 
     @staticmethod
-    def wald_test(beta:float, std_error:float, degrees_freedom:int=1, alpha:float=0.05, null_value:float=0, info:bool=False):
+    def wald_test(y_true:list, y_pred:list, degrees_freedom:int=1, alpha:float=0.05, null_value:float=0, info:bool=False):
+        y_pred_noisy = np.array(y_pred) + np.random.normal(0, 1e-4, size=len(y_pred))
+        
+        X = np.array(y_pred_noisy).reshape(-1, 1)
+        y = np.array(y_true)
+
+        model = sklearn.linear_model.LogisticRegression(solver='lbfgs', max_iter=1000)
+        model.fit(X, y)
+
+        beta = model.coef_[0][0]
+
+        p = model.predict_proba(X)[:, 1]
+        X_design = np.hstack([np.ones((len(X), 1)), X])
+        V = np.diag(p * (1 - p))
+        cov_matrix = np.linalg.inv(X_design.T @ V @ X_design)
+        std_error = np.sqrt(cov_matrix[1, 1])  # std error for the score coefficient
+
+        value = ((beta - null_value) / std_error) ** 2
+        p_value_ = 1 - scipy.stats.chi2.cdf(value, degrees_freedom)
+        reject_null = p_value_ < alpha
+        conclusion = 'Informative Variable' if reject_null else 'Not Informative Variable'
+
+        if info:
+            return {
+                "Wald statistic": round(value, 4),
+                "p value": round(p_value_, 4),
+                "reject null": bool(reject_null),
+                'conclusion': conclusion
+            }
+
+        return float(round(value, 4))
+    
+
+    @staticmethod
+    def wald_test_(beta:float=None, std_error:float=None, degrees_freedom:int=1, alpha:float=0.05, null_value:float=0, info:bool=False):
         value = ((beta - null_value) / std_error) ** 2
         p_value_ = 1 - scipy.stats.chi2.cdf(value, degrees_freedom)
         reject_null = bool(p_value_ < alpha)
@@ -426,27 +462,53 @@ class GoodnessFit:
 
 
     @staticmethod
-    def bootstrap_auc_ci(y_true, y_pred, n_bootstraps=1000, alpha=0.95, prob_base_0:bool=True):
-        aucs = []
-        y_true = np.array(y_true) if not isinstance(y_true, np.ndarray) else y_true
-        y_pred = np.array(y_pred) if not isinstance(y_pred, np.ndarray) else y_pred
-        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
+    def delong_roc_variance(y_true:list, y_pred:list):
+        y_true = np.asarray(y_true)
+        y_pred = np.asarray(y_pred)
+        
+        order = np.argsort(-y_pred)
+        y_pred = y_pred[order]
+        y_true = y_true[order]
 
-        for _ in range(n_bootstraps):
-            indices = sklearn.utils.resample(np.arange(len(y_true)), replace=True)
+        pos_count = np.sum(y_true)
+        neg_count = len(y_true) - pos_count
 
-            y_true_boot = y_true[indices]
-            y_pred_boot = y_pred[indices]
+        pos_scores = y_pred[y_true == 1]
+        neg_scores = y_pred[y_true == 0]
 
-            if len(np.unique(y_true_boot)) < 2:
-                continue
+        V10 = np.array([np.sum(score > neg_scores) + 0.5 * np.sum(score == neg_scores) for score in pos_scores]) / neg_count
+        V01 = np.array([np.sum(score < pos_scores) + 0.5 * np.sum(score == pos_scores) for score in neg_scores]) / pos_count
 
-            auc = sklearn.metrics.roc_auc_score(y_true_boot, y_pred_boot)
-            aucs.append(auc)
+        auc = np.mean(V10)
+        s10 = np.var(V10, ddof=1) / pos_count
+        s01 = np.var(V01, ddof=1) / neg_count
 
-        lower = np.percentile(aucs, (1 - alpha) / 2 * 100)
-        upper = np.percentile(aucs, (1 + alpha) / 2 * 100)
-        return np.mean(aucs), lower, upper
+        auc_variance = s10 + s01
+        return float(round(auc,4)), float(round(auc_variance,4))
+
+    @staticmethod
+    def compare_auc_delong(y_true:list, y_preds:list[list]):
+        results = []
+        n = len(y_preds)
+        for i in range(n):
+            for j in range(i + 1, n):
+                auc1, var1 = GoodnessFit.delong_roc_variance(y_true, y_preds[i])
+                auc2, var2 = GoodnessFit.delong_roc_variance(y_true, y_preds[j])
+
+                auc_diff = auc1 - auc2
+                var_diff = var1 + var2  # assumes independence
+                z = auc_diff / np.sqrt(var_diff)
+                p_value = 2 * (1 - scipy.stats.norm.cdf(abs(z)))
+
+                results.append({
+                    'model_1': i,
+                    'model_2': j,
+                    'auc1': auc1,
+                    'auc2': auc2,
+                    'z_stat': z,
+                    'p_value': p_value
+                })
+        return results
 
 
 
@@ -461,8 +523,5 @@ if __name__ == '__main__':
     }
     df = pd.DataFrame(df)
     print(
-
-        GoodnessFit.likelihood_ratio_test(-50, -47, 2, info=True),
-        GoodnessFit.wald_test(-50, -47, 2, info=True),
-        # GoodnessFit.likelihood_ratio_test(df[df['Grade'] == 0]['Y'], np.random.random(95+309), n_features=2, sample_size=95),
+        GoodnessFit.wald_test([1, 0, 1, 1, 0, 0], [0.9, 0.1, 0.5, 0.6, 0.4, 0.2], info=True),
     )

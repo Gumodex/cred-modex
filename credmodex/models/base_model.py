@@ -162,7 +162,7 @@ class BaseModel:
     
 
     def eval_goodness_of_fit(self, method:Union[str,type]='gini', rating:Union[type]=None,
-                             comparinson_cols:list[str]=[]):
+                             comparison_cols:list[str]=[]):
         if rating is None:
             try: rating = self.rating
             except: raise ModuleNotFoundError('There is no model to evaluate!')
@@ -193,15 +193,15 @@ class BaseModel:
             try: PSI_Discriminant(df=rating.df, target=self.target, features=['rating']).plot().show()
             except: ...
             print('\n=== Kolmogorov Smirnov ===')
-            print(KS_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print(KS_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
             print('\n=== Population Stability ===')
-            print(PSI_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print(PSI_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
             print('\n=== Information Value ===')
-            print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+            print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
 
 
     def model_relatory_pdf(self, rating:Union[type]=None, add_rating:bool=True,
-                           comparinson_cols:list[str]=[], pdf:PDF_Report=None, save_pdf:bool=True):
+                           comparison_cols:list[str]=[], pdf:PDF_Report=None, save_pdf:bool=True):
         if (pdf is None):
             pdf = PDF_Report()
         else: ...
@@ -209,18 +209,17 @@ class BaseModel:
         pdf.add_page()
         pdf.main_title(f'Score | {self.name}')
 
-        # table = tabulate(self.df.head(10).reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
         pdf.chapter_title('Main DataFrame')
-        pdf.chapter_df(str(self.df.head(10)))
+        pdf.add_dataframe_split(self.df.head(10), chunk_size=4)
 
         pdf.add_page()
 
         try:
-            ks = KS_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+            ks = KS_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
 
-            ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+            ks_table = ks.table()
             pdf.chapter_title('Kolmogorov Smirnov')
-            pdf.chapter_df(str(ks_table))
+            pdf.add_dataframe_split(ks_table, chunk_size=4)
 
             fig = ks.plot()
             fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
@@ -231,11 +230,11 @@ class BaseModel:
             pdf.chapter_df(f"<log> KS failed: {str(e)}")
 
         try:
-            psi = PSI_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+            psi = PSI_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
 
-            psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+            psi_table = psi.table()
             pdf.chapter_title('Population Stability Index')
-            pdf.chapter_df(psi_table)
+            pdf.add_dataframe_split(psi_table, chunk_size=4)
 
             fig = psi.plot()
             fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
@@ -246,7 +245,7 @@ class BaseModel:
             pdf.chapter_df(f"<log> PSI failed: {str(e)}")
 
         try:
-            gini = GINI_LORENZ_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+            gini = GINI_LORENZ_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
 
             pdf.chapter_title('Gini Lorenz Coefficient and Variability')
             gini_var = GoodnessFit.gini_variance(y_pred=self.df['score'], y_true=self.df[self.target], info=True)
@@ -263,7 +262,7 @@ class BaseModel:
         pdf.add_page()
 
         try:
-            iv = IV_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+            iv = IV_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
             iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
             pdf.chapter_title('Information Value')
             pdf.chapter_df(str(iv_table))
@@ -296,10 +295,10 @@ class BaseModel:
                 try:
                     pdf.chapter_title('Gains per Risk Group')
 
-                    fig = rating.plot_gains_per_risk_group(width=900)
+                    fig = rating.plot_gains_per_risk_group(width=800)
                     fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
                     img_path = pdf.save_plotly_to_image(fig)
-                    pdf.add_image(img_path, w=120)
+                    pdf.add_image(img_path, w=140)
                     os.remove(img_path)
                 except Exception as e:
                     pdf.chapter_df(f"<log> gains per risk failed: {str(e)}")
@@ -307,10 +306,10 @@ class BaseModel:
                 try:
                     pdf.chapter_title('Stability in Time')
 
-                    fig = rating.plot_stability_in_time(width=1200)
+                    fig = rating.plot_stability_in_time(width=800)
                     fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
                     img_path = pdf.save_plotly_to_image(fig)
-                    pdf.add_image(img_path, w=120)
+                    pdf.add_image(img_path, w=140)
                     os.remove(img_path)
                 except Exception as e:
                     pdf.chapter_df(f"<log> stability in time failed: {str(e)}")
@@ -318,7 +317,7 @@ class BaseModel:
                 pdf.add_page()
 
                 try:
-                    ks = KS_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
+                    ks = KS_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
 
                     ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
                     pdf.chapter_title('Kolmogorov Smirnov')
@@ -333,7 +332,7 @@ class BaseModel:
                     pdf.chapter_df(f"<log> KS failed: {str(e)}")
 
                 try:
-                    psi = PSI_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
+                    psi = PSI_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
 
                     psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
                     pdf.chapter_title('Population Stability Index')
@@ -349,7 +348,7 @@ class BaseModel:
         
                 try:
                     pdf.add_page()
-                    iv = IV_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
+                    iv = IV_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
                     iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
                     pdf.chapter_title('Information Value')
                     pdf.chapter_df(str(iv_table))
