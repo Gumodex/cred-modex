@@ -23,7 +23,7 @@ class CH_Binning():
     def fit(self, x:list, y:list, metric:str='bins'):
         self.ch_model_ = 0
         for i in range(2, self.max_n_bins+1):
-            model_ = OptimalBinning(dtype="numerical", solver="cp", max_n_bins=i)
+            model_ = OptimalBinning(dtype="numerical", solver="cp", min_n_bins=2, max_n_bins=i)
             model_.fit(x, y)
             fitted_ = model_.transform(x, metric=metric)
 
@@ -91,6 +91,9 @@ class CH_Binning():
             return np.inf
 
         ch = (bss / (g - 1)) / (wss / (n - g))
+
+        if (ch is np.nan):
+            return 0
         
         return float(round(ch,4))
 

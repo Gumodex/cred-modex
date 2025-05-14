@@ -4,6 +4,7 @@ import warnings
 from typing import Union
 
 from pprint import pprint, pformat
+import sklearn.metrics
 from tabulate import tabulate
 import pandas as pd
 import numpy as np
@@ -229,8 +230,8 @@ class CredLab:
             pprint(GoodnessFit.gini_variance(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
 
 
-    def model_relatory(self, model:Union[type]=None, rating:Union[type]=None,
-                       comparinson_cols:list[str]=[]):
+    def model_relatory_notebook(self, model:Union[type]=None, rating:Union[type]=None,
+                                comparinson_cols:list[str]=[]):
         if model is None:
             try: model = self.model
             except: raise ModuleNotFoundError('There is no model to evaluate!')
@@ -255,12 +256,12 @@ class CredLab:
         pprint(GoodnessFit.gini_variance(y_pred=model.df['score'], y_true=model.df[model.target], info=True))
 
         if rating is None:
-            try: rating = self.model.rating
+            try: rating = model.rating
             except: 
                 print('There is no rating to evaluate!')
                 return
 
-        for key, rating in self.model.ratings.items():
+        for key, rating in model.ratings.items():
             print(f'\n{'':=^100}\n{f' {key} ':=^100}\n{'':=^100}')
 
             rating.plot_gains_per_risk_group().show()
@@ -277,161 +278,36 @@ class CredLab:
             print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
 
 
-    def model_relatory_(self, model:Union[type]=None, rating:Union[type]=None,
-                       comparinson_cols:list[str]=[]):
-        if model is None:
-            try: model = self.model
-            except: raise ModuleNotFoundError('There is no model to evaluate!')
+    def eval_best_model(self,):
+        if (len(self.models.items()) < 2):
+            raise TypeError('You must have at least 2 models in your project!')
+        
+        results = []
+
+        for model_name, model in self.models.items():
+            auc, auc_lower, auc_upper = GoodnessFit.bootstrap_auc_ci(
+                y_true=model.df[model.target],
+                y_pred=model.df['score']
+            )
+
+            print(auc, auc_lower, auc_upper)
+
+        return None
+
+
+    def models_relatory_pdf(self, comparinson_cols:list[str]=[]):
+        if (len(self.models.items())  < 1):
+            raise TypeError('There are no Models available! Please, add a Model with ``.add_model()``')
 
         pdf = PDF_Report()
-        pdf.add_page()
+        for model_name, model in self.models.items():
+            pdf.add_chapter_model_page(text=model_name)
+            pdf = model.model_relatory_pdf(
+                comparinson_cols=comparinson_cols,
+                pdf=pdf, save_pdf=False
+            )
 
-        pdf.main_title(f'Score | {self.model.name}')
-
-        try:
-            ks = KS_Discriminant(df=model.df, target=self.target, features=['score'] + comparinson_cols)
-
-            ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-            pdf.chapter_title('Kolmogorov Smirnov')
-            pdf.chapter_df(str(ks_table))
-
-            fig = ks.plot()
-            fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-            img_path = pdf.save_plotly_to_image(fig)
-            pdf.add_image(img_path)
-            os.remove(img_path)
-        except Exception as e:
-            pdf.chapter_df(f"<log> KS failed: {str(e)}")
-
-        try:
-            psi = PSI_Discriminant(df=model.df, target=self.target, features=['score'] + comparinson_cols)
-
-            psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-            pdf.chapter_title('Population Stability Index')
-            pdf.chapter_df(psi_table)
-
-            fig = psi.plot()
-            fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-            img_path = pdf.save_plotly_to_image(fig)
-            pdf.add_image(img_path)
-            os.remove(img_path)
-        except Exception as e:
-            pdf.chapter_df(f"<log> PSI failed: {str(e)}")
-
-        try:
-            gini = GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score'] + comparinson_cols)
-
-            pdf.chapter_title('Gini Lorenz Coefficient and Variability')
-            gini_var = GoodnessFit.gini_variance(y_pred=model.df['score'], y_true=model.df[model.target], info=True)
-            pdf.chapter_df(pformat(gini_var))
-
-            fig = gini.plot()
-            fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-            img_path = pdf.save_plotly_to_image(fig)
-            pdf.add_image(img_path, w=120)
-            os.remove(img_path)
-        except Exception as e:
-            pdf.chapter_df(f"Plotting failed for {GINI_LORENZ_Discriminant.__name__}: {str(e)}")
-
-        pdf.add_page()
-
-        try:
-            iv = IV_Discriminant(df=model.df, target=self.target, features=['score'] + comparinson_cols)
-            iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-            pdf.chapter_title('Information Value')
-            pdf.chapter_df(str(iv_table))
-        except Exception as e:
-            pdf.chapter_df(f"IV Table failed: {str(e)}")
-
-        try:
-            hosmer = GoodnessFit.hosmer_lemeshow(y_pred=model.df['score'], y_true=model.df[model.target], info=True)
-            pdf.chapter_title('Hosmer Lemeshow')
-            pdf.chapter_df(pformat(hosmer))
-        except Exception as e:
-            pdf.chapter_df(f"Hosmer Lemeshow failed: {str(e)}")
-
-        try:
-            deviance = GoodnessFit.deviance_odds(y_pred=model.df['score'], y_true=model.df[model.target], info=True)
-            pdf.chapter_title('Deviance Odds')
-            pdf.chapter_df(pformat(deviance))
-        except Exception as e:
-            pdf.chapter_df(f"Deviance Odds failed: {str(e)}")
-
-
-        if rating is None:
-            try: rating = self.model.rating
-            except: 
-                print('There is no rating to evaluate!')
-                return
-            
-        for key, rating in self.model.ratings.items():
-            pdf.add_page()
-            pdf.main_title(f'Rating | {rating.name}')
-
-            try:
-                pdf.chapter_title('Gains per Risk Group')
-
-                fig = rating.plot_gains_per_risk_group()
-                fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-                img_path = pdf.save_plotly_to_image(fig)
-                pdf.add_image(img_path, w=120)
-                os.remove(img_path)
-            except Exception as e:
-                pdf.chapter_df(f"<log> gains per risk failed: {str(e)}")
-        
-            try:
-                pdf.chapter_title('Stability in Time')
-
-                fig = rating.plot_stability_in_time()
-                fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-                img_path = pdf.save_plotly_to_image(fig)
-                pdf.add_image(img_path, w=120)
-                os.remove(img_path)
-            except Exception as e:
-                pdf.chapter_df(f"<log> stability in time failed: {str(e)}")
-
-            pdf.add_page()
-
-            try:
-                ks = KS_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
-
-                ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-                pdf.chapter_title('Kolmogorov Smirnov')
-                pdf.chapter_df(str(ks_table))
-
-                fig = ks.plot(col='rating')
-                fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-                img_path = pdf.save_plotly_to_image(fig)
-                pdf.add_image(img_path)
-                os.remove(img_path)
-            except Exception as e:
-                pdf.chapter_df(f"<log> KS failed: {str(e)}")
-
-            try:
-                psi = PSI_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
-
-                psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-                pdf.chapter_title('Population Stability Index')
-                pdf.chapter_df(psi_table)
-
-                fig = psi.plot(col='rating', discrete=True)
-                fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-                img_path = pdf.save_plotly_to_image(fig)
-                pdf.add_image(img_path)
-                os.remove(img_path)
-            except Exception as e:
-                pdf.chapter_df(f"<log> PSI failed: {str(e)}")
-    
-            try:
-                iv = IV_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
-                iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-                pdf.chapter_title('Information Value')
-                pdf.chapter_df(str(iv_table))
-            except Exception as e:
-                pdf.chapter_df(f"IV Table failed: {str(e)}")
-
-        pdf.output(f"{self.model.name}_report.pdf")
-
+        pdf.output(f"{model_name}_report.pdf")
 
 
 
@@ -440,4 +316,4 @@ class CredLab:
 
 
 if __name__ == "__main__":
-    print(f'{'':=^100}\n{' SCORE ':=^100}\n{'':=^100}')
+    ...

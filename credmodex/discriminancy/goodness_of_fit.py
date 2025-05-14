@@ -6,6 +6,7 @@ import scipy.stats
 import statsmodels.stats
 
 import sklearn.metrics
+import sklearn.utils
 
 
 __all__ = [
@@ -424,6 +425,28 @@ class GoodnessFit:
         return float(round(engelmann,4))
 
 
+    @staticmethod
+    def bootstrap_auc_ci(y_true, y_pred, n_bootstraps=1000, alpha=0.95, prob_base_0:bool=True):
+        aucs = []
+        y_true = np.array(y_true) if not isinstance(y_true, np.ndarray) else y_true
+        y_pred = np.array(y_pred) if not isinstance(y_pred, np.ndarray) else y_pred
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
+
+        for _ in range(n_bootstraps):
+            indices = sklearn.utils.resample(np.arange(len(y_true)), replace=True)
+
+            y_true_boot = y_true[indices]
+            y_pred_boot = y_pred[indices]
+
+            if len(np.unique(y_true_boot)) < 2:
+                continue
+
+            auc = sklearn.metrics.roc_auc_score(y_true_boot, y_pred_boot)
+            aucs.append(auc)
+
+        lower = np.percentile(aucs, (1 - alpha) / 2 * 100)
+        upper = np.percentile(aucs, (1 + alpha) / 2 * 100)
+        return np.mean(aucs), lower, upper
 
 
 

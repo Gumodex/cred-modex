@@ -3,7 +3,9 @@ import numpy as np
 import inspect
 from typing import Union
 import warnings
-from pprint import pprint
+import os
+from pprint import pprint, pformat
+from tabulate import tabulate
 
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
@@ -12,6 +14,7 @@ from sklearn.linear_model import LogisticRegression
 
 from credmodex.rating import Rating
 from credmodex.discriminancy import *
+from credmodex.utils import *
 
 
 class BaseModel:
@@ -20,14 +23,22 @@ class BaseModel:
     """
 
     def __init__(self, model:type=None, treatment:type=None, df:pd.DataFrame=None, seed:int=42, doc:str=None,
-                 features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None):
+                 features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None, n_features:int=None):
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if (model is None):
             model = LogisticRegression(max_iter=5000, solver='saga')
         if (treatment is None):
             treatment = lambda df: df
-        
+        if isinstance(features,str):
+            self.features = [features]
+        else:
+            self.features = features
+        if (n_features is None):
+            self.n_features = len(self.features)
+        else:
+            self.n_features = n_features
+
         self.seed = seed
         np.random.seed(self.seed)
 
@@ -35,7 +46,6 @@ class BaseModel:
         self.treatment = treatment
         self.df = df
         self.doc = doc
-        self.features = features
         self.target = target
         self.time_col = time_col
         self.name = name
@@ -62,14 +72,14 @@ class BaseModel:
         self.fit_predict()
 
 
-
     def train_test_(self):
         try:
             self.train = self.df[self.df['split'] == 'train']
             self.test = self.df[self.df['split'] == 'test']
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col]]
+            transformed_features = [col for col in self.df.columns if col not in ['split', self.target, self.time_col]]
             self.features = transformed_features
+            self.n_features = len(transformed_features)
 
             self.X_train = self.df[self.df['split'] == 'train'][self.features]
             self.X_test = self.df[self.df['split'] == 'test'][self.features]
@@ -84,8 +94,9 @@ class BaseModel:
             self.train = self.df
             self.test = self.df
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col]]
+            transformed_features = [col for col in self.df.columns if col not in ['split', self.target, self.time_col]]
             self.features = transformed_features
+            self.n_features = len(transformed_features)
 
             self.X_train = self.df[self.features]
             self.X_test = self.df[self.features]
@@ -187,3 +198,167 @@ class BaseModel:
             print(PSI_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
             print('\n=== Information Value ===')
             print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparinson_cols).table())
+
+
+    def model_relatory_pdf(self, rating:Union[type]=None, add_rating:bool=True,
+                           comparinson_cols:list[str]=[], pdf:PDF_Report=None, save_pdf:bool=True):
+        if (pdf is None):
+            pdf = PDF_Report()
+        else: ...
+
+        pdf.add_page()
+        pdf.main_title(f'Score | {self.name}')
+
+        # table = tabulate(self.df.head(10).reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+        pdf.chapter_title('Main DataFrame')
+        pdf.chapter_df(str(self.df.head(10)))
+
+        pdf.add_page()
+
+        try:
+            ks = KS_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+
+            ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+            pdf.chapter_title('Kolmogorov Smirnov')
+            pdf.chapter_df(str(ks_table))
+
+            fig = ks.plot()
+            fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+            img_path = pdf.save_plotly_to_image(fig)
+            pdf.add_image(img_path)
+            os.remove(img_path)
+        except Exception as e:
+            pdf.chapter_df(f"<log> KS failed: {str(e)}")
+
+        try:
+            psi = PSI_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+
+            psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+            pdf.chapter_title('Population Stability Index')
+            pdf.chapter_df(psi_table)
+
+            fig = psi.plot()
+            fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+            img_path = pdf.save_plotly_to_image(fig)
+            pdf.add_image(img_path)
+            os.remove(img_path)
+        except Exception as e:
+            pdf.chapter_df(f"<log> PSI failed: {str(e)}")
+
+        try:
+            gini = GINI_LORENZ_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+
+            pdf.chapter_title('Gini Lorenz Coefficient and Variability')
+            gini_var = GoodnessFit.gini_variance(y_pred=self.df['score'], y_true=self.df[self.target], info=True)
+            pdf.chapter_df(pformat(gini_var))
+
+            fig = gini.plot()
+            fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+            img_path = pdf.save_plotly_to_image(fig)
+            pdf.add_image(img_path, w=120)
+            os.remove(img_path)
+        except Exception as e:
+            pdf.chapter_df(f"Plotting failed for {GINI_LORENZ_Discriminant.__name__}: {str(e)}")
+
+        pdf.add_page()
+
+        try:
+            iv = IV_Discriminant(df=self.df, target=self.target, features=['score'] + comparinson_cols)
+            iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+            pdf.chapter_title('Information Value')
+            pdf.chapter_df(str(iv_table))
+        except Exception as e:
+            pdf.chapter_df(f"IV Table failed: {str(e)}")
+
+        try:
+            hosmer = GoodnessFit.hosmer_lemeshow(y_pred=self.df['score'], y_true=self.df[self.target], info=True)
+            pdf.chapter_title('Hosmer Lemeshow')
+            pdf.chapter_df(pformat(hosmer))
+        except Exception as e:
+            pdf.chapter_df(f"Hosmer Lemeshow failed: {str(e)}")
+
+        try:
+            deviance = GoodnessFit.deviance_odds(y_pred=self.df['score'], y_true=self.df[self.target], info=True)
+            pdf.chapter_title('Deviance Odds')
+            pdf.chapter_df(pformat(deviance))
+        except Exception as e:
+            pdf.chapter_df(f"Deviance Odds failed: {str(e)}")
+
+
+        if (add_rating == True) and (len(self.ratings.items()) >= 1):
+                
+            for key, rating in self.ratings.items():
+                pdf.reference_name_page = f'{self.name} {rating.name}'
+                pdf.add_chapter_rating_page(text1=rating.name, text2=self.name)
+                pdf.add_page()
+                pdf.main_title(f'Rating | {rating.name}')
+
+                try:
+                    pdf.chapter_title('Gains per Risk Group')
+
+                    fig = rating.plot_gains_per_risk_group(width=900)
+                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+                    img_path = pdf.save_plotly_to_image(fig)
+                    pdf.add_image(img_path, w=120)
+                    os.remove(img_path)
+                except Exception as e:
+                    pdf.chapter_df(f"<log> gains per risk failed: {str(e)}")
+            
+                try:
+                    pdf.chapter_title('Stability in Time')
+
+                    fig = rating.plot_stability_in_time(width=1200)
+                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+                    img_path = pdf.save_plotly_to_image(fig)
+                    pdf.add_image(img_path, w=120)
+                    os.remove(img_path)
+                except Exception as e:
+                    pdf.chapter_df(f"<log> stability in time failed: {str(e)}")
+
+                pdf.add_page()
+
+                try:
+                    ks = KS_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
+
+                    ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+                    pdf.chapter_title('Kolmogorov Smirnov')
+                    pdf.chapter_df(str(ks_table))
+
+                    fig = ks.plot(col='rating')
+                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+                    img_path = pdf.save_plotly_to_image(fig)
+                    pdf.add_image(img_path)
+                    os.remove(img_path)
+                except Exception as e:
+                    pdf.chapter_df(f"<log> KS failed: {str(e)}")
+
+                try:
+                    psi = PSI_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
+
+                    psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+                    pdf.chapter_title('Population Stability Index')
+                    pdf.chapter_df(psi_table)
+
+                    fig = psi.plot(col='rating', discrete=True)
+                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+                    img_path = pdf.save_plotly_to_image(fig)
+                    pdf.add_image(img_path)
+                    os.remove(img_path)
+                except Exception as e:
+                    pdf.chapter_df(f"<log> PSI failed: {str(e)}")
+        
+                try:
+                    pdf.add_page()
+                    iv = IV_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparinson_cols)
+                    iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+                    pdf.chapter_title('Information Value')
+                    pdf.chapter_df(str(iv_table))
+                except Exception as e:
+                    pdf.chapter_df(f"IV Table failed: {str(e)}")
+
+        if (save_pdf == True):
+            pdf.output(f"{self.name}_report.pdf")
+        else:
+            return pdf
+
+
