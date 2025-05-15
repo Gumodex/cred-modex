@@ -18,10 +18,12 @@ __all__ = [
 
 class CH_Binning():
     def __init__(self,  min_n_bins:int=2, max_n_bins:int=15, 
-                 dtype:Literal['numerical','categorical']='numerical'):
+                 dtype:Literal['numerical','categorical']='numerical',
+                 transform_func:Literal['alphabet','sequence']='alphabet',):
         self.max_n_bins = max_n_bins
         self.min_n_bins = min_n_bins
         self.dtype = dtype
+        self.transform_func = transform_func
 
 
     def fit(self, x:list, y:list, metric:str='bins'):
@@ -32,7 +34,7 @@ class CH_Binning():
             model_.fit(x, y)
             fitted_ = model_.transform(x, metric=metric)
 
-            if self.dtype == 'categorical':
+            if self.dtype in {'categorical'}:
                 df = pd.DataFrame({'bin': fitted_, 'target': y})
                 bins_map = df.groupby('bin')['target'].mean().to_dict()
 
@@ -60,11 +62,14 @@ class CH_Binning():
 
 
     def transform(self, x:list, metric:str='bins'):
-        if self.dtype == 'numerical':
+        if (self.dtype == 'numerical'):
             pred_ = self.model.transform(x, metric=metric)
-        if self.dtype == 'categorical':
+        if (self.dtype == 'categorical'):
             pred_ = self.model.transform(x, metric=metric)
-            pred_ = self.convert_categorical_(bins=self.bins_map, list_=pred_)
+            if (self.transform_func == 'alphabet'):
+                pred_ = self.convert_categorical_(bins=self.bins_map, list_=pred_)
+            elif (self.transform_func == 'sequence'):
+                pred_ = self.convert_categorical_to_numerical_(bins=self.bins_map, list_=pred_)
         return pred_
 
 
@@ -89,9 +94,19 @@ class CH_Binning():
             else:
                 bins[key] = chr(65 + letter)
                 letter += 1
-        # Apply the mapping to the list of list_
-        return [bins[label] for label in list_]
 
+        self.bins_map = bins
+        return [bins[label] for label in list_]
+    
+
+    def convert_categorical_to_numerical_(self, bins:dict, list_:list):
+        bins = dict(sorted(bins.items(), key=lambda item: item[1]))
+        weight = [round(1-(i/len(bins.keys())),6) for i in range(len(bins.keys()))]
+        for key, value in zip(bins.keys(), weight):
+            bins[key] = value
+
+        self.bins_map = bins
+        return [bins[label] for label in list_]
 
 
     @staticmethod
