@@ -1,6 +1,8 @@
 import sys
 import os
 from optbinning import OptimalBinning
+from typing import Literal
+import string
 
 import pandas as pd
 import numpy as np
@@ -14,25 +16,38 @@ __all__ = [
 ]
 
 
-
 class CH_Binning():
-    def __init__(self,  max_n_bins:int=15):
+    def __init__(self,  min_n_bins:int=2, max_n_bins:int=15, 
+                 dtype:Literal['numerical','categorical']='numerical'):
         self.max_n_bins = max_n_bins
+        self.min_n_bins = min_n_bins
+        self.dtype = dtype
 
 
     def fit(self, x:list, y:list, metric:str='bins'):
         self.ch_model_ = 0
-        for i in range(2, self.max_n_bins+1):
-            model_ = OptimalBinning(dtype="numerical", solver="cp", min_n_bins=2, max_n_bins=i)
+        self.ch_model_dict_ = {}
+        for i in range(self.min_n_bins, self.max_n_bins+1):
+            model_ = OptimalBinning(dtype=self.dtype, solver="cp", min_n_bins=self.min_n_bins, max_n_bins=i)
             model_.fit(x, y)
             fitted_ = model_.transform(x, metric=metric)
 
-            new_ch_model_ = CH_Binning.calinski_harabasz(y_pred=x, bins=fitted_)
+            if self.dtype == 'categorical':
+                df = pd.DataFrame({'bin': fitted_, 'target': y})
+                bins_map = df.groupby('bin')['target'].mean().to_dict()
+
+                y_pred = [bins_map[b] for b in fitted_]
+            else:
+                y_pred = x 
+
+            new_ch_model_ = CH_Binning.calinski_harabasz(y_pred=y_pred, bins=fitted_)
+            self.ch_model_dict_[i] = new_ch_model_
             
             if (new_ch_model_ > self.ch_model_):
                 self.ch_model_ = new_ch_model_
                 self.n_bins_ = i
                 self.model = model_
+                self.bins_map = bins_map
 
             self._copy_model_attributes()
             
@@ -45,7 +60,11 @@ class CH_Binning():
 
 
     def transform(self, x:list, metric:str='bins'):
-        pred_ = self.model.transform(x, metric=metric)
+        if self.dtype == 'numerical':
+            pred_ = self.model.transform(x, metric=metric)
+        if self.dtype == 'categorical':
+            pred_ = self.model.transform(x, metric=metric)
+            pred_ = self.convert_categorical_(bins=self.bins_map, list_=pred_)
         return pred_
 
 
@@ -55,11 +74,24 @@ class CH_Binning():
                 setattr(self, attr, getattr(self.model, attr))
 
 
-    @staticmethod
     def map_to_alphabet_(self, lst):
         result = {num: chr(65 + index) for index, num in enumerate(lst)}
         self.df['rating'] = self.df['rating'].map(result).fillna('-')
         return result
+
+
+    def convert_categorical_(self, bins:dict, list_:list):
+        bins = dict(sorted(bins.items(), key=lambda item: item[1]))
+        letter = 0
+        for key in list(bins.keys()):
+            if key == 'Missing':
+                bins[key] = 'None'
+            else:
+                bins[key] = chr(65 + letter)
+                letter += 1
+        # Apply the mapping to the list of list_
+        return [bins[label] for label in list_]
+
 
 
     @staticmethod
