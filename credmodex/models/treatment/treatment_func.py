@@ -39,10 +39,17 @@ class TreatentFunc():
         if isinstance(col, str):
             col = [col]
         col = list(col)
+
+        for c in col:
+            if c not in self.df.columns:
+                raise ValueError(f"Column '{c}' not found in the DataFrame.")
         if col is None:
             raise ValueError("You must specify a column or list of columns.")
-        col = self.df.select_dtypes(include=["number"]).columns.tolist()
-        col = [c for c in col if c not in self.forbidden_cols]
+
+        col = [c for c in col 
+               if (c in self.df.select_dtypes(include=["number"]).columns.tolist()) 
+               and (c not in self.forbidden_cols)]
+        
         return col
 
 
@@ -129,5 +136,12 @@ class TreatentFunc():
             )
 
             self.bins_map[c] = bins.bins_map
+
+        return self.df
+    
+
+    def fillna(self, col:list|str=None, value=0):
+        for c in col:
+            self.df[col] = self.df[c].fillna(value)
 
         return self.df
