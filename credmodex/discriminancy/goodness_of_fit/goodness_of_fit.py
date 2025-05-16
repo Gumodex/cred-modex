@@ -1,14 +1,10 @@
-import itertools
-
 import numpy as np
 import pandas as pd
 import scipy.stats
 import sklearn.linear_model
-import statsmodels.stats
-import statsmodels.api
 
 import sklearn.metrics
-import sklearn.utils
+
 
 __all__ = [
     'GoodnessFit'
@@ -1190,10 +1186,6 @@ class GoodnessFit:
                     'p_value': p_value
                 })
         return results
-
-
-
-
 
 
 if __name__ == '__main__':

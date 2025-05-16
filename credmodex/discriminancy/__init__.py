@@ -1,8 +1,8 @@
 from .correlation import (
-    Correlation
+    Correlation,
 )
 from .goodness_of_fit import (
-    GoodnessFit
+    GoodnessFit,
 )
 from .discriminants import (
     IV_Discriminant,
