@@ -17,19 +17,37 @@ class TreatentFunc():
         self.bins_map = {}
 
 
-    def check_str_col_(self, col:list|str=None):
+    def _check_str_col(self, col:list|str=None):
+        if isinstance(col, str):
+            col = [col]
+        col = list(col)
+
+        for c in col:
+            if c not in self.df.columns:
+                raise ValueError(f"Column '{c}' not found in the DataFrame.")
+        if col is None:
+            raise ValueError("You must specify a column or list of columns.")
+        
+        col = [c for c in col 
+               if (c in self.df.select_dtypes(exclude=["number", "datetime"]).columns.tolist()) 
+               and (c not in self.forbidden_cols)]
+        
+        return col
+    
+
+    def _check_float_col(self, col:list|str=None):
         if isinstance(col, str):
             col = [col]
         col = list(col)
         if col is None:
             raise ValueError("You must specify a column or list of columns.")
-        col = self.df.select_dtypes(exclude=["number", "datetime"]).columns.tolist()
+        col = self.df.select_dtypes(include=["number"]).columns.tolist()
         col = [c for c in col if c not in self.forbidden_cols]
         return col
 
 
     def dummy_str_columns(self, col:list|str=None):
-        col = self.check_str_col_(col)
+        col = self._check_str_col(col)
 
         self.df[col] = self.df[col].fillna('Missing')
         self.df = pd.get_dummies(self.df, columns=col)
@@ -37,9 +55,9 @@ class TreatentFunc():
         return self.df
     
 
-    def bin_str_columns(self, col:list|str=None, 
-                               min_n_bins:int=2, max_n_bins:int=10):
-        col = self.check_str_col_(col)
+    def _bin_str_columns(self, col:list|str=None, 
+                        min_n_bins:int=2, max_n_bins:int=10):
+        col = self._check_str_col(col)
 
         if self.target is None:
             raise ValueError("You must specify a target.")
@@ -58,12 +76,12 @@ class TreatentFunc():
         return self.df
     
 
-    def dummy_binned_str_columns(self, col:list|str=None, 
-                                      min_n_bins:int=2, max_n_bins:int=10):
-        col = self.check_str_col_(col)
+    def dummy_bin_str_columns(self, col:list|str=None, 
+                              min_n_bins:int=2, max_n_bins:int=10):
+        col = self._check_str_col(col)
 
         for c in col:
-            self.bin_str_columns(
+            self._bin_str_columns(
                 col=c, min_n_bins=min_n_bins, max_n_bins=max_n_bins
             )
             self.dummy_str_columns(col=c)
@@ -71,9 +89,9 @@ class TreatentFunc():
         return self.df
     
 
-    def sequential_str_columns(self, col:list|str=None, 
-                                        min_n_bins:int=2, max_n_bins:int=10):
-        col = self.check_str_col_(col)
+    def sequentialize_str_columns(self, col:list|str=None, 
+                                  min_n_bins:int=2, max_n_bins:int=10):
+        col = self._check_str_col(col)
 
         if self.target is None:
             raise ValueError("You must specify a target.")
@@ -82,6 +100,28 @@ class TreatentFunc():
             bins = CH_Binning(
                 min_n_bins=min_n_bins, max_n_bins=max_n_bins,
                 dtype='categorical', transform_func='sequence'
+            )
+            self.df[c] = bins.fit_transform(
+                x=self.df[c],
+                y=self.df[self.target]
+            )
+
+            self.bins_map[c] = bins.bins_map
+
+        return self.df
+
+
+    def normalize_str_columns(self, col:list|str=None, 
+                              min_n_bins:int=2, max_n_bins:int=10):
+        col = self._check_str_col(col)
+
+        if self.target is None:
+            raise ValueError("You must specify a target.")
+
+        for c in col:
+            bins = CH_Binning(
+                min_n_bins=min_n_bins, max_n_bins=max_n_bins,
+                dtype='categorical', transform_func='normalize'
             )
             self.df[c] = bins.fit_transform(
                 x=self.df[c],

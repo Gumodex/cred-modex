@@ -4,8 +4,6 @@ import warnings
 from typing import Union
 
 from pprint import pprint, pformat
-import sklearn.metrics
-from tabulate import tabulate
 import pandas as pd
 import numpy as np
 import sklearn
@@ -178,9 +176,6 @@ class CredLab:
         
         if ('gini' in method) or (method == GINI_Discriminant):
             return GINI_Discriminant(df, self.target, self.features)
-        
-        if ('chi' in method) or (method == CHI2_Discriminant):
-            return CHI2_Discriminant(df, self.target, self.features)
         
         if ('corr' in method) or (method == Correlation):
             return Correlation(df, self.target, self.features)

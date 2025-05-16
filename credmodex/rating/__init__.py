@@ -1,5 +1,5 @@
-from .rating import Rating
-from .calinski_harabasz_binning import CH_Binning
+from .base_rating import Rating
+from .binning import CH_Binning
 
 
 __all__ = [

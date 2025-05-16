@@ -16,7 +16,7 @@ __all__ = [
 class CH_Binning():
     def __init__(self,  min_n_bins:int=2, max_n_bins:int=15, 
                  dtype:Literal['numerical','categorical']='numerical',
-                 transform_func:Literal['alphabet','sequence']='alphabet',):
+                 transform_func:Literal['alphabet','sequence','normalize']='alphabet',):
         self.max_n_bins = max_n_bins
         self.min_n_bins = min_n_bins
         self.dtype = dtype
@@ -27,7 +27,7 @@ class CH_Binning():
         self.ch_model_ = -1
         self.ch_model_dict_ = {}
         for i in range(self.min_n_bins, self.max_n_bins+1):
-            model_ = OptimalBinning(dtype=self.dtype, solver="cp", min_n_bins=self.min_n_bins, max_n_bins=i)
+            model_ = OptimalBinning(dtype=self.dtype, solver="cp", min_n_bins=i, max_n_bins=i)
             model_.fit(x, y)
             fitted_ = model_.transform(x, metric=metric)
 
@@ -43,11 +43,16 @@ class CH_Binning():
             new_ch_model_ = CH_Binning.calinski_harabasz(y_pred=y_pred, bins=fitted_)
             self.ch_model_dict_[i] = new_ch_model_
             
-            if (new_ch_model_ > self.ch_model_):
+            if (new_ch_model_ > self.ch_model_) and (~np.isinf(new_ch_model_)):
                 self.ch_model_ = new_ch_model_
                 self.n_bins_ = i
                 self.model = model_
                 self.bins_map = bins_map
+
+            try:
+                self.model == 0
+            except: 
+                raise TypeError('No optimum binning was found in the range interval for X and Y.')
 
             self._copy_model_attributes()
             
@@ -65,9 +70,11 @@ class CH_Binning():
         if (self.dtype == 'categorical'):
             pred_ = self.model.transform(x, metric=metric)
             if (self.transform_func == 'alphabet'):
-                pred_ = self.convert_categorical_(bins=self.bins_map, list_=pred_)
+                pred_ = self._convert_categorical(bins=self.bins_map, list_=pred_)
             elif (self.transform_func == 'sequence'):
-                pred_ = self.convert_categorical_to_numerical_(bins=self.bins_map, list_=pred_)
+                pred_ = self._convert_categorical_to_numerical(bins=self.bins_map, list_=pred_)
+            elif (self.transform_func == 'normalize'):
+                pred_ = self._convert_categorical_to_normal(bins=self.bins_map, list_=pred_)
         return pred_
 
 
@@ -77,13 +84,13 @@ class CH_Binning():
                 setattr(self, attr, getattr(self.model, attr))
 
 
-    def map_to_alphabet_(self, lst):
+    def _map_to_alphabet(self, lst):
         result = {num: chr(65 + index) for index, num in enumerate(lst)}
         self.df['rating'] = self.df['rating'].map(result).fillna('-')
         return result
 
 
-    def convert_categorical_(self, bins:dict, list_:list):
+    def _convert_categorical(self, bins:dict, list_:list):
         bins = dict(sorted(bins.items(), key=lambda item: item[1]))
         letter = 0
         for key in list(bins.keys()):
@@ -95,9 +102,9 @@ class CH_Binning():
 
         self.bins_map = bins
         return [bins[label] for label in list_]
-    
 
-    def convert_categorical_to_numerical_(self, bins:dict, list_:list):
+
+    def _convert_categorical_to_numerical(self, bins:dict, list_:list):
         bins = dict(sorted(bins.items(), key=lambda item: item[1]))
         weight = [round(1-(i/len(bins.keys())),6) for i in range(len(bins.keys()))]
         for key, value in zip(bins.keys(), weight):
@@ -105,6 +112,20 @@ class CH_Binning():
 
         self.bins_map = bins
         return [bins[label] for label in list_]
+
+
+    def _convert_categorical_to_normal(self, bins:dict, list_:list):
+        bins = dict(sorted(bins.items(), key=lambda item: item[1]))
+        values = list(bins.values())
+        _min = min(values)
+        _max = max(values)
+        for key, value in bins.items():
+            bins[key] = round(abs((value - _max) / (_min - _max)),6)
+
+        self.bins_map = bins
+        return [bins[label] for label in list_]
+
+
 
 
     @staticmethod

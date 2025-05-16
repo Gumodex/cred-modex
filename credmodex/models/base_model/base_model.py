@@ -27,7 +27,7 @@ class BaseModel:
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if (model is None):
-            model = LogisticRegression(max_iter=5000, solver='saga')
+            model = LogisticRegression(max_iter=10000, solver='saga')
         if (treatment is None):
             treatment = lambda df: df
         if isinstance(features,str):
@@ -359,5 +359,3 @@ class BaseModel:
             pdf.output(f"{self.name}_report.pdf")
         else:
             return pdf
-
-

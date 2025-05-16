@@ -12,9 +12,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 sys.path.append(os.path.abspath('.'))
-from credmodex.rating.calinski_harabasz_binning import CH_Binning
+from credmodex.rating.binning.calinski_harabasz_binning import CH_Binning
 from credmodex.utils import *
 
+
+__all__ = [
+    'Rating'
+]
 
 
 class Rating():
