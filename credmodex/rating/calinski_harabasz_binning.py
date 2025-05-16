@@ -1,8 +1,5 @@
-import sys
-import os
 from optbinning import OptimalBinning
 from typing import Literal
-import string
 
 import pandas as pd
 import numpy as np
@@ -112,6 +109,40 @@ class CH_Binning():
 
     @staticmethod
     def calinski_harabasz(y_pred:list, bins:list):
+        """
+        Compute the Calinski-Harabasz score to evaluate the separation between binned groups.
+
+        This score measures how well predicted probabilities are clustered by a given binning scheme.
+        It is commonly used in clustering and binning evaluations to assess group distinctiveness.
+
+        Parameters
+        ----------
+        y_pred : list
+            Predicted probabilities or scores (continuous values).
+        bins : list
+            Corresponding bin labels for each prediction (can be strings or numeric identifiers).
+
+        Returns
+        -------
+        float
+            Calinski-Harabasz score, rounded to 4 decimal places.
+            Returns `np.inf` if the denominator is zero (suggesting perfect separation).
+            Returns `0` if the result is not a number (`NaN`).
+
+        Notes
+        -----
+        The score is calculated as:
+
+            CH = (BSS / (g - 1)) / (WSS / (n - g))
+
+        where:
+        - BSS = between-group sum of squares
+        - WSS = within-group sum of squares
+        - g = number of bins
+        - n = total number of observations
+
+        A higher score indicates better separation between the groups.
+        """
         df = {
             "y_pred": y_pred,
             "bins": bins
@@ -135,7 +166,6 @@ class CH_Binning():
         )
 
         if ((wss / (n - g)) == 0):
-            # print(f'(wss / (n - g)) == 0 | (wss = {wss}) (n = {n}) (g = {g}) | Optimum Might Have Been Achieved')
             return np.inf
 
         ch = (bss / (g - 1)) / (wss / (n - g))

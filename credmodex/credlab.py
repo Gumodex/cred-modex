@@ -10,15 +10,17 @@ import pandas as pd
 import numpy as np
 import sklearn
 
+import plotly.graph_objects as go
+
 sys.path.append(os.path.abspath('.'))
 from credmodex.discriminancy import *
 from credmodex.models import BaseModel
 from credmodex.utils import *
 
-df = pd.read_csv(r'C:\Users\gustavo.filho\Documents\Python\Modules\Credit Risk\test\df.csv')
 
-
-
+__all__ = [
+    'CredLab'
+]
 
 
 class CredLab:
@@ -132,8 +134,6 @@ class CredLab:
 
     def add_model(self, model:type=None, treatment:type=None, name:str=None, doc:str=None, time_col:str=None, seed:int=42):
 
-        if df is None:
-            raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if name is None:
             name = f'{model.__class__.__name__}_{len(self.models)+1}'
         if time_col is None:
@@ -176,8 +176,8 @@ class CredLab:
         if ('psi' in method) or (method == PSI_Discriminant):
             return PSI_Discriminant(df, self.target, self.features)
         
-        if ('gini' in method) or (method == GINI_LORENZ_Discriminant):
-            return GINI_LORENZ_Discriminant(df, self.target, self.features)
+        if ('gini' in method) or (method == GINI_Discriminant):
+            return GINI_Discriminant(df, self.target, self.features)
         
         if ('chi' in method) or (method == CHI2_Discriminant):
             return CHI2_Discriminant(df, self.target, self.features)
@@ -198,7 +198,7 @@ class CredLab:
             'iv': IV_Discriminant,
             'ks': KS_Discriminant,
             'psi': PSI_Discriminant,
-            'gini': GINI_LORENZ_Discriminant,
+            'gini': GINI_Discriminant,
             'corr': Correlation,
             'good': GoodnessFit,
         }
@@ -211,7 +211,7 @@ class CredLab:
                     except: return func
             
         if ('relatory' in method):
-            for func in [KS_Discriminant, PSI_Discriminant, GINI_LORENZ_Discriminant]:
+            for func in [KS_Discriminant, PSI_Discriminant, GINI_Discriminant]:
                 try: func(df=model.df, target=self.target, features=['score']).plot().show()
                 except: ...
             print('\n=== Kolmogorov Smirnov ===')
@@ -219,7 +219,7 @@ class CredLab:
             print('\n=== Population Stability ===')
             print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Gini Lorenz ===')
-            print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
+            print(GINI_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Information Value ===')
             print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
             print('\n=== Hosmer Lemeshow ===') 
@@ -237,7 +237,7 @@ class CredLab:
             except: raise ModuleNotFoundError('There is no model to evaluate!')
         
         print(f'{'':=^100}\n{' SCORE ':=^100}\n{'':=^100}')
-        for func in [KS_Discriminant, PSI_Discriminant, GINI_LORENZ_Discriminant]:
+        for func in [KS_Discriminant, PSI_Discriminant, GINI_Discriminant]:
             try: func(df=model.df, target=self.target, features=['score']).plot().show()
             except: ...
         print('\n=== Kolmogorov Smirnov ===')
@@ -245,7 +245,7 @@ class CredLab:
         print('\n=== Population Stability ===')
         print(PSI_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Gini Lorenz ===')
-        print(GINI_LORENZ_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
+        print(GINI_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Information Value ===')
         print(IV_Discriminant(df=model.df, target=self.target, features=['score']+comparison_cols).table())
         print('\n=== Hosmer Lemeshow ===') 

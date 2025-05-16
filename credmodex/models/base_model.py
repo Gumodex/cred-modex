@@ -173,7 +173,7 @@ class BaseModel:
             'iv': IV_Discriminant,
             'ks': KS_Discriminant,
             'psi': PSI_Discriminant,
-            'gini': GINI_LORENZ_Discriminant,
+            'gini': GINI_Discriminant,
             'corr': Correlation,
             'good': GoodnessFit,
         }
@@ -245,7 +245,7 @@ class BaseModel:
             pdf.chapter_df(f"<log> PSI failed: {str(e)}")
 
         try:
-            gini = GINI_LORENZ_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
+            gini = GINI_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
 
             pdf.chapter_title('Gini Lorenz Coefficient and Variability')
             gini_var = GoodnessFit.gini_variance(y_pred=self.df['score'], y_true=self.df[self.target], info=True)
@@ -257,7 +257,7 @@ class BaseModel:
             pdf.add_image(img_path, w=120)
             os.remove(img_path)
         except Exception as e:
-            pdf.chapter_df(f"Plotting failed for {GINI_LORENZ_Discriminant.__name__}: {str(e)}")
+            pdf.chapter_df(f"Plotting failed for {GINI_Discriminant.__name__}: {str(e)}")
 
         pdf.add_page()
 

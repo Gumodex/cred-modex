@@ -4,8 +4,8 @@ from . import rating
 from . import utils
 
 __all__ = [
-    'models',
-    'utils',
-    'rating',
     'discriminancy'
+    'models',
+    'rating',
+    'utils',
 ]

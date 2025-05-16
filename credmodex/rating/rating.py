@@ -3,7 +3,6 @@ import os
 import warnings
 import inspect
 from typing import Union
-import re
 
 import pandas as pd
 import numpy as np

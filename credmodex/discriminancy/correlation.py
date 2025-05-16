@@ -6,7 +6,9 @@ import scipy.stats
 import statsmodels.stats
 
 
-__all__ = ['Correlation']
+__all__ = [
+    'Correlation'
+]
 
 
 class Correlation:
@@ -45,7 +47,7 @@ class Correlation:
         
         mu = np.mean(y, axis=0)
         cov = np.cov(y, rowvar=False)
-        cov_inv = np.linalg.pinv(cov)  # <- mais robusto que np.linalg.inv
+        cov_inv = np.linalg.pinv(cov)
         diff = x - mu
         value = np.sqrt(diff.T @ cov_inv @ diff)
         return value
@@ -113,7 +115,4 @@ class Correlation:
 
 
 if __name__ == '__main__':
-    print(
-        Correlation.mahalanobis([1, 2], [[2, 3], [5, 6], [4, 5]])
-
-    )
+    ...
