@@ -5,24 +5,31 @@ import os
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating import CH_Binning
 
-
+__all__ = [
+    'TreatentFunc'
+]
 
 class TreatentFunc():
     def __init__(self, df:pd.DataFrame=None, target:str=None):
         self.df = df.copy(deep=True) 
         self.target = target
+        self.forbidden_cols = ['split', self.target, 'score', 'rating']
+        self.bins_map = {}
 
 
-    def dummy_columns(self, col:list|str=None):
-        if col is None:
-            raise ValueError("You must specify a column or list of columns.")
-
+    def check_str_col_(self, col:list|str=None):
         if isinstance(col, str):
             col = [col]
+        col = list(col)
+        if col is None:
+            raise ValueError("You must specify a column or list of columns.")
+        col = self.df.select_dtypes(exclude=["number", "datetime"]).columns.tolist()
+        col = [c for c in col if c not in self.forbidden_cols]
+        return col
 
-        for c in col:
-            if pd.api.types.is_numeric_dtype(self.df[c]):
-                raise TypeError(f"Column '{c}' is numeric, so dummy encoding does not apply!")
+
+    def dummy_str_columns(self, col:list|str=None):
+        col = self.check_str_col_(col)
 
         self.df[col] = self.df[col].fillna('Missing')
         self.df = pd.get_dummies(self.df, columns=col)
@@ -30,74 +37,57 @@ class TreatentFunc():
         return self.df
     
 
-    def bin_categorical_column(self, col:str=None, 
+    def bin_str_columns(self, col:list|str=None, 
                                min_n_bins:int=2, max_n_bins:int=10):
-        if col is None:
-            raise ValueError("You must specify a column.")
+        col = self.check_str_col_(col)
+
         if self.target is None:
             raise ValueError("You must specify a target.")
 
-        if not isinstance(col, str):
-            raise ValueError("You must specify a single column.")
-
-        if pd.api.types.is_numeric_dtype(self.df[col]):
-            raise TypeError(f"Column '{col}' is numeric, so dummy encoding does not apply!")
-
-        bins = CH_Binning(
-            min_n_bins=min_n_bins, max_n_bins=max_n_bins,
-            dtype='categorical'
-        )
-        self.df[col] = bins.fit_transform(
-            x=self.df[col],
-            y=self.df[self.target]
-        )
-        self.bins_map = bins.bins_map
+        for c in col:
+            bins = CH_Binning(
+                min_n_bins=min_n_bins, max_n_bins=max_n_bins,
+                dtype='categorical'
+            )
+            self.df[c] = bins.fit_transform(
+                x=self.df[c],
+                y=self.df[self.target]
+            )
+            self.bins_map[c] = bins.bins_map
 
         return self.df
     
 
-    def dummy_bin_categorical_columns(self, col:list|str=None, 
+    def dummy_binned_str_columns(self, col:list|str=None, 
                                       min_n_bins:int=2, max_n_bins:int=10):
-        if col is None:
-            raise ValueError("You must specify a column or list of columns.")
-
-        if isinstance(col, str):
-            col = [col]
+        col = self.check_str_col_(col)
 
         for c in col:
-            if pd.api.types.is_numeric_dtype(self.df[c]):
-                raise TypeError(f"Column '{c}' is numeric, so dummy encoding does not apply!")
-            
-        for c in col:
-            self.bin_categorical_column(
+            self.bin_str_columns(
                 col=c, min_n_bins=min_n_bins, max_n_bins=max_n_bins
             )
-            self.dummy_columns(col=c)
+            self.dummy_str_columns(col=c)
 
         return self.df
     
 
-    def categorical_to_numerical_column(self, col:str=None, 
+    def sequential_str_columns(self, col:list|str=None, 
                                         min_n_bins:int=2, max_n_bins:int=10):
-        if col is None:
-            raise ValueError("You must specify a column.")
+        col = self.check_str_col_(col)
+
         if self.target is None:
             raise ValueError("You must specify a target.")
 
-        if not isinstance(col, str):
-            raise ValueError("You must specify a single column.")
+        for c in col:
+            bins = CH_Binning(
+                min_n_bins=min_n_bins, max_n_bins=max_n_bins,
+                dtype='categorical', transform_func='sequence'
+            )
+            self.df[c] = bins.fit_transform(
+                x=self.df[c],
+                y=self.df[self.target]
+            )
 
-        if pd.api.types.is_numeric_dtype(self.df[col]):
-            raise TypeError(f"Column '{col}' is numeric, so dummy encoding does not apply!")
-
-        bins = CH_Binning(
-            min_n_bins=min_n_bins, max_n_bins=max_n_bins,
-            dtype='categorical', transform_func='sequence'
-        )
-        self.df[col] = bins.fit_transform(
-            x=self.df[col],
-            y=self.df[self.target]
-        )
-        self.bins_map = bins.bins_map
+            self.bins_map[c] = bins.bins_map
 
         return self.df

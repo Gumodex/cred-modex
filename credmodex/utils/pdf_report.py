@@ -127,6 +127,7 @@ class PDF_Report(FPDF):
 
 
     def add_dataframe_split(self, df, chunk_size=3, title_prefix='Score Comparison'):
+        self.reference_name_page = title_prefix
         self.set_font('Courier', '', 8)
         self.set_text_color(20)
         num_chunks = math.ceil(len(df.columns) / chunk_size)
@@ -137,6 +138,9 @@ class PDF_Report(FPDF):
             table = tabulate(chunk_df.reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
             self.multi_cell(0, 3, str(table))
             self.ln()
+
+            if (((i+1)%3) == 0):
+                self.add_page()
 
 
     @staticmethod

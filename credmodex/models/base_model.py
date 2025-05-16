@@ -44,7 +44,7 @@ class BaseModel:
 
         self.model = model
         self.treatment = treatment
-        self.df = df
+        self.df = df.copy(deep=True)
         self.doc = doc
         self.target = target
         self.time_col = time_col
@@ -236,7 +236,7 @@ class BaseModel:
             pdf.chapter_title('Population Stability Index')
             pdf.add_dataframe_split(psi_table, chunk_size=4)
 
-            fig = psi.plot()
+            fig = psi.plot(add_min_max=True)
             fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
             img_path = pdf.save_plotly_to_image(fig)
             pdf.add_image(img_path)

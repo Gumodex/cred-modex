@@ -27,7 +27,7 @@ class CH_Binning():
 
 
     def fit(self, x:list, y:list, metric:str='bins'):
-        self.ch_model_ = 0
+        self.ch_model_ = -1
         self.ch_model_dict_ = {}
         for i in range(self.min_n_bins, self.max_n_bins+1):
             model_ = OptimalBinning(dtype=self.dtype, solver="cp", min_n_bins=self.min_n_bins, max_n_bins=i)
@@ -41,6 +41,7 @@ class CH_Binning():
                 y_pred = [bins_map[b] for b in fitted_]
             else:
                 y_pred = x 
+                bins_map = {}
 
             new_ch_model_ = CH_Binning.calinski_harabasz(y_pred=y_pred, bins=fitted_)
             self.ch_model_dict_[i] = new_ch_model_
@@ -139,7 +140,7 @@ class CH_Binning():
 
         ch = (bss / (g - 1)) / (wss / (n - g))
 
-        if (ch is np.nan):
+        if np.isnan(ch):
             return 0
         
         return float(round(ch,4))

@@ -32,7 +32,7 @@ class Rating():
             model = CH_Binning(max_n_bins=15)
 
         self.model = model
-        self.df = df
+        self.df = df.copy(deep=True)
         self.doc = doc
         self.optb_type = optb_type
         self.name = name

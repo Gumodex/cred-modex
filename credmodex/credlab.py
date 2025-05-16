@@ -30,16 +30,16 @@ class CredLab:
 
         if (df is None):
             raise ValueError("DataFrame cannot be None")
-        self.raw_df = df
+        self.raw_df = df.copy(deep=True)
         if (not isinstance(target, str)) or (not isinstance(features, list)):
             raise ValueError("target must be a string and features must be a list of strings")
         # The self.df contains only the columns target + features
         features = [f for f in features if f in df.columns and f != target and f != time_column]
 
         if time_column:
-            self.df = df[features + [target] + [time_column]] if features and target else None
+            self.df = df[features + [target] + [time_column]].copy(deep=True) if features and target else None
         else:
-            self.df = df[features + [target]] if features and target else None
+            self.df = df[features + [target]].copy(deep=True) if features and target else None
         if (self.df is None):
             raise ValueError("Both target and [features] must be provided.")
         
@@ -301,22 +301,23 @@ class CredLab:
             deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
 
             metrics_dict[model_name] = {
+                'AIC': round(aic,1),
+                'Hosmer-Lemeshow': hosmer_lemershow,
+                'Wald Test': wald_test,
+                'Power Odds': deviance_odds,
                 'AUC': auc,
                 'AUC Variance': auc_variance,
                 'Gini': gini,
                 'Gini CI Lower': gini_lower,
                 'Gini CI Upper': gini_upper,
-                'Hosmer-Lemeshow': hosmer_lemershow,
                 'Log-Likelihood': round(log_likelihood,1),
-                'AIC': round(aic,1),
                 'BIC': round(bic,1),
-                'Wald Test': wald_test,
-                'Power Odds': deviance_odds
             }
 
         # Create DataFrame and transpose it so model names are columns
         dff = pd.DataFrame(metrics_dict)
         dff.loc['Relative Likelihood',:] = GoodnessFit.relative_likelihood(aic_values=list(dff.loc['AIC',:].values))
+        dff = dff.loc[['Relative Likelihood'] + [i for i in dff.index if i != 'Relative Likelihood']]
 
         return dff
 
