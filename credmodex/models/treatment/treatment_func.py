@@ -52,7 +52,7 @@ class TreatentFunc():
         self.df[col] = self.df[col].fillna('Missing')
         self.df = pd.get_dummies(self.df, columns=col)
 
-        return self.df
+        return self.df[col]
     
 
     def _bin_str_columns(self, col:list|str=None, 
@@ -73,7 +73,7 @@ class TreatentFunc():
             )
             self.bins_map[c] = bins.bins_map
 
-        return self.df
+        return self.df[col]
     
 
     def dummy_bin_str_columns(self, col:list|str=None, 
@@ -86,7 +86,7 @@ class TreatentFunc():
             )
             self.dummy_str_columns(col=c)
 
-        return self.df
+        return self.df[col]
     
 
     def sequentialize_bin_str_columns(self, col:list|str=None, 
@@ -108,7 +108,7 @@ class TreatentFunc():
 
             self.bins_map[c] = bins.bins_map
 
-        return self.df
+        return self.df[col]
 
 
     def normalize_bin_str_columns(self, col:list|str=None, 
@@ -130,7 +130,7 @@ class TreatentFunc():
 
             self.bins_map[c] = bins.bins_map
 
-        return self.df
+        return self.df[col]
     
 
     def fillna(self, col:list|str=None, value=0):
@@ -138,4 +138,4 @@ class TreatentFunc():
         for c in col:
             self.df[c] = self.df[c].fillna(value)
 
-        return self.df
+        return self.df[col]
