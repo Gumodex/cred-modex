@@ -202,7 +202,7 @@ class Logistic(LogisticRegression):
             Returns the probability of the sample for each class in the model,
             where classes are ordered as they are in ``self.classes_``.
         """
-        return super().predict_proba(X)
+        return super().predict_proba(X)[:,0]
 
 
 

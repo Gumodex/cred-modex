@@ -38,4 +38,4 @@ class ModifiedHuber(SGDClassifier):
         Override `predict()` to return probabilities instead of class labels.
         For binary classification, this returns the probability of the positive class.
         """
-        return super().predict_proba(X)
+        return super().predict_proba(X)[:,0]
