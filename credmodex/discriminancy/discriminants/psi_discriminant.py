@@ -28,7 +28,7 @@ class PSI_Discriminant():
 
 
     def value(self, col:str=None, percent_shift:float=0.8, is_continuous:bool=False, max_n_bins:int=10, 
-              final_value:bool=False, add_min_max:bool=False, min_value:float=0.0, max_value:float=1.0):
+              final_value:bool=False, add_min_max:list=[None, None]):
         if col is None:
             if ('score' in self.features):
                 col = 'score'
@@ -40,16 +40,16 @@ class PSI_Discriminant():
         self.train = self.df.iloc[:split_index]
         self.test = self.df.iloc[split_index:]
 
-        if (add_min_max == True):
+        if (add_min_max[0] is not None) and (add_min_max[-1] is not None):
             self.train = pd.concat([
                 self.train, 
-                pd.DataFrame([min_value], columns=[col]), 
-                pd.DataFrame([max_value], columns=[col])
+                pd.DataFrame([add_min_max[0]], columns=[col]), 
+                pd.DataFrame([add_min_max[-1]], columns=[col])
             ])
             self.test = pd.concat([
                 self.test, 
-                pd.DataFrame([min_value], columns=[col]), 
-                pd.DataFrame([max_value], columns=[col])
+                pd.DataFrame([add_min_max[0]], columns=[col]), 
+                pd.DataFrame([add_min_max[-1]], columns=[col])
             ])
 
 
@@ -122,7 +122,7 @@ class PSI_Discriminant():
     
 
     def plot(self, col:str=None, percent_shift:float=0.8, discrete:bool=False, max_n_bins:int=10, width:int=900, height:int=450,
-             add_min_max:bool=False, min_value:float=0.0, max_value:float=1.0):
+             add_min_max:list=[None, None]):
         if col is None:
             if ('score' in self.features):
                 col = 'score'
@@ -131,7 +131,7 @@ class PSI_Discriminant():
                 except: raise ValueError("A column (col) must be provided")
 
         dff = self.value(col=col, percent_shift=percent_shift, max_n_bins=max_n_bins,
-                         add_min_max=add_min_max, min_value=min_value, max_value=max_value)
+                         add_min_max=add_min_max)
         psi = dff.loc['Total','ANDERSON (2022)']
         if dff is None: 
             return

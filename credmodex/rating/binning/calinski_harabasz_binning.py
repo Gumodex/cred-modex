@@ -189,7 +189,9 @@ class CH_Binning():
         if ((wss / (n - g)) == 0):
             return np.inf
 
-        ch = (bss / (g - 1)) / (wss / (n - g))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            ch = (bss / (g - 1)) / (wss / (n - g))
 
         if np.isnan(ch):
             return 0

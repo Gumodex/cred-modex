@@ -17,7 +17,7 @@ class TreatentFunc():
         self.bins_map = {}
 
 
-    def _check_str_col(self, col:list|str=None):
+    def _check_col(self, col:list|str=None):
         if isinstance(col, str):
             col = [col]
         col = list(col)
@@ -26,30 +26,23 @@ class TreatentFunc():
             if c not in self.df.columns:
                 raise ValueError(f"Column '{c}' not found in the DataFrame.")
         if col is None:
-            raise ValueError("You must specify a column or list of columns.")
-        
+            raise ValueError("You must specify a column or list of columns.")        
+        return col
+
+
+    def _check_str_col(self, col:list|str=None):
+        col = self._check_col(col)
         col = [c for c in col 
                if (c in self.df.select_dtypes(exclude=["number", "datetime"]).columns.tolist()) 
                and (c not in self.forbidden_cols)]
-        
         return col
     
 
     def _check_float_col(self, col:list|str=None):
-        if isinstance(col, str):
-            col = [col]
-        col = list(col)
-
-        for c in col:
-            if c not in self.df.columns:
-                raise ValueError(f"Column '{c}' not found in the DataFrame.")
-        if col is None:
-            raise ValueError("You must specify a column or list of columns.")
-
+        col = self._check_col(col)
         col = [c for c in col 
                if (c in self.df.select_dtypes(include=["number"]).columns.tolist()) 
                and (c not in self.forbidden_cols)]
-        
         return col
 
 
@@ -96,8 +89,8 @@ class TreatentFunc():
         return self.df
     
 
-    def sequentialize_str_columns(self, col:list|str=None, 
-                                  min_n_bins:int=2, max_n_bins:int=10):
+    def sequentialize_bin_str_columns(self, col:list|str=None, 
+                                      min_n_bins:int=2, max_n_bins:int=10):
         col = self._check_str_col(col)
 
         if self.target is None:
@@ -118,8 +111,8 @@ class TreatentFunc():
         return self.df
 
 
-    def normalize_str_columns(self, col:list|str=None, 
-                              min_n_bins:int=2, max_n_bins:int=10):
+    def normalize_bin_str_columns(self, col:list|str=None, 
+                                  min_n_bins:int=2, max_n_bins:int=10):
         col = self._check_str_col(col)
 
         if self.target is None:
@@ -141,7 +134,8 @@ class TreatentFunc():
     
 
     def fillna(self, col:list|str=None, value=0):
+        col = self._check_col(col)
         for c in col:
-            self.df[col] = self.df[c].fillna(value)
+            self.df[c] = self.df[c].fillna(value)
 
         return self.df
