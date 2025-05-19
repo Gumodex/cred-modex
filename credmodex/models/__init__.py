@@ -1,11 +1,13 @@
 from .base_model import BaseModel
 from .treatment import TreatentFunc
 from .parametric_models import (
-    Logistic
+    Logistic,
+    Probit,
 )
 
 __all__ = [
     'BaseModel',
     'TreatentFunc',
     'Logistic',
+    'Probit',
 ]
