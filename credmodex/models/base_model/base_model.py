@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 
 from sklearn.linear_model import LogisticRegression
+from scipy.stats import chi2_contingency
 
 from credmodex.rating import Rating
 from credmodex.discriminancy import *
@@ -359,3 +360,44 @@ class BaseModel:
             pdf.output(f"{self.name}_report.pdf")
         else:
             return pdf
+        
+
+    def eval_best_rating(self, sort:str=None):
+        
+        metrics_dict = {}
+
+        for rating_name, rating in self.ratings.items():
+            y_true = rating.df[rating.target]
+            y_pred = rating.df['rating']
+
+            iv = IV_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            ks = KS_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            psi = PSI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            gini = GINI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)/100
+            auc = round((gini+1)/2, 4)
+
+            contingency_table = pd.crosstab(y_pred, y_true)
+            chi2_stat, p_val_chi2, _, _ = chi2_contingency(contingency_table)
+            if (p_val_chi2 < 0.05): chi2 = 'Significant Discr.'
+            else: chi2 = 'No Significant Discr.'
+
+            metrics_dict[f'{self.name}.{rating_name}'] = {
+                'iv': iv,
+                'ks': ks,
+                'psi': psi,
+                'auc': auc,
+                'gini': gini,
+                'chi2': chi2,
+            }
+
+        # Create DataFrame and transpose it so rating names are columns
+        dff = pd.DataFrame(metrics_dict)
+
+        try:
+            sort = sort.lower()
+            if (sort is not None) and (sort in [s.lower() for s in dff.index]):
+                dff = dff.T.sort_values(by=sort, ascending=False).T
+        except:
+            ...
+
+        return dff

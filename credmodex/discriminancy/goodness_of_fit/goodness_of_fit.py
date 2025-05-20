@@ -1086,7 +1086,7 @@ class GoodnessFit:
 
 
     @staticmethod
-    def delong_roc_variance(y_true:list, y_pred:list):
+    def delong_roc_variance(y_true:list, y_pred:list, prob_base_0:bool=True):
         """
         Estimate the variance of the AUC using the DeLong method.
 
@@ -1099,6 +1099,8 @@ class GoodnessFit:
             Binary ground truth labels (0 or 1).
         y_pred : list
             Predicted probabilities for class 1.
+        prob_base_0 : bool, optional
+            If True, assumes `y_pred` is the probability for class 0 and converts it to class 1.
 
         Returns
         -------
@@ -1109,6 +1111,8 @@ class GoodnessFit:
         -----
         This function assumes independence between positive and negative classes.
         """
+        if (prob_base_0 == True):
+            y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred=y_pred)
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
         

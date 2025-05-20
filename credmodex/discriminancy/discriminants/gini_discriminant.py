@@ -52,6 +52,7 @@ class GINI_Discriminant():
 
         dff['Odds'] = (dff['Good'] / dff['Bad']).round(2)
         dff['Rate'] = (dff['Bad'] / dff['Total']).round(4)
+        dff = dff.sort_values(by='Rate', ascending=False)
 
         total = dff['Total'].sum()
         total_B = dff['Bad'].sum()

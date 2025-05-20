@@ -9,6 +9,7 @@ import numpy as np
 import sklearn
 
 import plotly.graph_objects as go
+from scipy.stats import chi2_contingency
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.discriminancy import *
@@ -273,10 +274,7 @@ class CredLab:
             print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
 
 
-    def eval_best_model(self):
-        if len(self.models.items()) < 2:
-            raise TypeError('You must have at least 2 models in your project!')
-        
+    def eval_best_model(self, sort:str=None):
         metrics_dict = {}
 
         for model_name, model in self.models.items():
@@ -295,24 +293,61 @@ class CredLab:
             wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
             deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
 
+            iv = IV_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            ks = KS_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            psi = PSI_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+
+            contingency_table = pd.crosstab(y_pred, y_true)
+            chi2_stat, p_val_chi2, _, _ = chi2_contingency(contingency_table)
+            if (p_val_chi2 < 0.05): chi2 = 'Significant Discr.'
+            else: chi2 = 'No Significant Discr.'
+
             metrics_dict[model_name] = {
-                'AIC': round(aic,1),
-                'Hosmer-Lemeshow': hosmer_lemershow,
-                'Wald Test': wald_test,
-                'Power Odds': deviance_odds,
-                'AUC': auc,
-                'AUC Variance': auc_variance,
-                'Gini': gini,
-                'Gini CI Lower': gini_lower,
-                'Gini CI Upper': gini_upper,
-                'Log-Likelihood': round(log_likelihood,1),
-                'BIC': round(bic,1),
+                'iv': iv,
+                'ks': ks,
+                'psi': psi,
+                'chi2': chi2,
+                'aic': round(aic,1),
+                'hosmer-lemeshow': hosmer_lemershow,
+                'wald test': wald_test,
+                'power odds': deviance_odds,
+                'auc': auc,
+                'auc variance': auc_variance,
+                'gini': gini,
+                'gini ci lower': gini_lower,
+                'gini ci upper': gini_upper,
+                'log-likelihood': round(log_likelihood,1),
+                'bic': round(bic,1),
             }
 
         # Create DataFrame and transpose it so model names are columns
         dff = pd.DataFrame(metrics_dict)
-        dff.loc['Relative Likelihood',:] = GoodnessFit.relative_likelihood(aic_values=list(dff.loc['AIC',:].values))
-        dff = dff.loc[['Relative Likelihood'] + [i for i in dff.index if i != 'Relative Likelihood']]
+        dff.loc['relative likelihood',:] = GoodnessFit.relative_likelihood(aic_values=list(dff.loc['aic',:].values))
+        dff = dff.loc[['relative likelihood'] + [i for i in dff.index if i != 'relative likelihood']]
+
+        try:
+            sort = sort.lower()
+            if (sort is not None) and (sort in [s.lower() for s in dff.index]):
+                dff = dff.T.sort_values(by=sort, ascending=False).T
+        except:
+            ...
+
+        return dff
+
+
+    def eval_best_rating(self, sort:str=None):
+        dff = pd.DataFrame()
+        for model_name, model in self.models.items():
+            dff_ = model.eval_best_rating()
+
+            dff = pd.concat([dff, dff_], axis=1)
+        
+        try:
+            sort = sort.lower()
+            if (sort is not None) and (sort in [s.lower() for s in dff.index]):
+                dff = dff.T.sort_values(by=sort, ascending=False).T
+        except:
+            ...
 
         return dff
 
