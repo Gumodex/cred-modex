@@ -1,9 +1,15 @@
 import itertools
+import sys
+import os
 
 import numpy as np
 import pandas as pd
 import scipy.stats
-import statsmodels.stats
+from statsmodels.stats import outliers_influence
+
+import plotly.graph_objects as go
+sys.path.append(os.path.abspath('.'))
+from credmodex.utils.design import *
 
 
 __all__ = [
@@ -214,7 +220,7 @@ class Correlation:
         vif_df = pd.DataFrame()
         vif_df['Variable'] = dff.columns
         vif_df['VIF'] = [
-            round(statsmodels.stats.outliers_influence.variance_inflation_factor(dff.values, i),3)
+            round(outliers_influence.variance_inflation_factor(dff.values, i),3)
             for i in range(dff.shape[1])
         ]
 
@@ -279,6 +285,32 @@ class Correlation:
         correlation_df = pd.DataFrame(correlation_results)
         return correlation_df
 
+
+    @staticmethod
+    def plot_correlation(df:pd.DataFrame=None, x:list|str=None, y:list|str=None, color:list|str=None,
+                         x_str:str=None, y_str:str=None, width:int=700, height:int=600):
+        if isinstance(x, str):
+            x_str = x
+            x = df[x]
+        if isinstance(y, str):
+            y_str = y
+            y = df[y]
+        if isinstance(color, str):
+            color = df[color]
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=x, y=y, mode='markers',
+            marker=dict(color=color),
+        ))
+
+        fig = plotly_main_layout(
+            fig, title=f'Corr({x_str}, {y_str})', x=x_str, y=y_str,
+            width=width, height=height
+        )
+
+        return fig
 
 if __name__ == '__main__':
     ...

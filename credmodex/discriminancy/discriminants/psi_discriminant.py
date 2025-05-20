@@ -122,7 +122,7 @@ class PSI_Discriminant():
     
 
     def plot(self, col:str=None, percent_shift:float=0.8, discrete:bool=False, max_n_bins:int=10, width:int=900, height:int=450,
-             add_min_max:list=[None, None]):
+             add_min_max:list=[None, None], sort_index:bool=False):
         if col is None:
             if ('score' in self.features):
                 col = 'score'
@@ -171,6 +171,9 @@ class PSI_Discriminant():
             try:
                 if (discrete) or (~pd.api.types.is_numeric_dtype(self.df[col])):
                     dff = dff[dff.index != 'Total']
+
+                    if (sort_index == True):
+                        dff = dff.sort_index(ascending=True)
 
                     fig = go.Figure()
                     fig.add_trace(go.Bar(
