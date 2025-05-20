@@ -381,17 +381,33 @@ class BaseModel:
             if (p_val_chi2 < 0.05): chi2 = 'Significant Discr.'
             else: chi2 = 'No Significant Discr.'
 
+            y_true = rating.df[rating.target]
+            y_pred = rating.df.groupby('rating')[self.target].transform('mean')
+
+            hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
+            log_likelihood = GoodnessFit.log_likelihood(y_true=y_true, y_pred=y_pred)
+            aic = GoodnessFit.aic(y_true=y_true, y_pred=y_pred, n_features=self.n_features)
+            bic = GoodnessFit.bic(y_true=y_true, y_pred=y_pred, n_features=self.n_features, sample_size=len(self.df))
+            wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
+            deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
+
             metrics_dict[f'{self.name}.{rating_name}'] = {
-                'iv': iv,
-                'ks': ks,
-                'psi': psi,
-                'auc': auc,
-                'gini': gini,
+                'iv': round(iv,4),
+                'ks': round(ks,4),
+                'psi': round(psi,4),
+                'auc': round(auc,4),
+                'gini': round(gini,4),
                 'chi2': chi2,
+                'wald test': wald_test,
+                'log-likelihood': round(log_likelihood,1),
+                'aic': round(aic,1),
+                'bic': round(bic,1),
             }
 
         # Create DataFrame and transpose it so rating names are columns
         dff = pd.DataFrame(metrics_dict)
+        dff.loc['relative likelihood',:] = GoodnessFit.relative_likelihood(aic_values=list(dff.loc['aic',:].values))
+        dff = dff.loc[['relative likelihood'] + [i for i in dff.index if i != 'relative likelihood']]
 
         try:
             sort = sort.lower()
