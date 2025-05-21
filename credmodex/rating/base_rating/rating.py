@@ -116,7 +116,7 @@ class Rating():
 
         optb_type = self.optb_type.lower().strip() if isinstance(self.optb_type, str) else None
 
-        if optb_type and 'trans' in optb_type:
+        if optb_type and ('trans' in optb_type):
             if not hasattr(self.model, 'transform'):
                 raise AttributeError("Model has no `transform` method.")
 
@@ -129,7 +129,8 @@ class Rating():
                 bin_table = self.model.binning_table.build()
                 bins = list(bin_table['Bin'].unique())
             except Exception as e:
-                raise RuntimeError("Failed to build binning table.") from e
+                bins = self.df.groupby('rating')[self.target].mean().sort_values(ascending=True)
+                bins = list(bins.index)
 
             bin_map = Rating.map_to_alphabet_(bins)
             self.bins = bin_map
@@ -144,8 +145,9 @@ class Rating():
     @staticmethod
     def map_to_alphabet_(bin_list):
         valid_bins = [b for b in bin_list if b not in ['Special', 'Missing', '']]
-        sorted_bins = sorted(valid_bins, key=lambda x: float(x.split(',')[1].replace(')', '').replace('inf', '1e10')), reverse=True)
-        bin_map = {bin_label: chr(65 + i) for i, bin_label in enumerate(sorted_bins)}
+        try: valid_bins = sorted(valid_bins, key=lambda x: float(x.split(',')[1].replace(')', '').replace('inf', '1e10')), reverse=True)
+        except: ...
+        bin_map = {bin_label: chr(65 + i) for i, bin_label in enumerate(valid_bins)}
         return bin_map
                 
 

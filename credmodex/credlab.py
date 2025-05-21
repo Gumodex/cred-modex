@@ -359,7 +359,7 @@ class CredLab:
         pdf = PDF_Report()
 
         try:
-            pdf.add_chapter_model_page(text='Score Evaluation')
+            pdf.add_chapter_model_page(text=f'{pdf.reference_name_page}')
             
             pdf.add_page()
             best_model_table = self.eval_best_model()

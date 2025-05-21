@@ -52,7 +52,7 @@ class TreatentFunc():
         self.df[col] = self.df[col].fillna('Missing')
         self.df = pd.get_dummies(self.df, columns=col)
 
-        return self.df[col]
+        return self.df
     
 
     def _bin_str_columns(self, col:list|str=None, 
@@ -86,7 +86,7 @@ class TreatentFunc():
             )
             self.dummy_str_columns(col=c)
 
-        return self.df[col]
+        return self.df
     
 
     def sequentialize_bin_str_columns(self, col:list|str=None, 

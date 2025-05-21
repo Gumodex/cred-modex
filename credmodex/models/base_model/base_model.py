@@ -339,7 +339,7 @@ class BaseModel:
                     pdf.chapter_title('Population Stability Index')
                     pdf.chapter_df(psi_table)
 
-                    fig = psi.plot(col='rating', discrete=True)
+                    fig = psi.plot(col='rating', discrete=True, sort_index=True)
                     fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
                     img_path = pdf.save_plotly_to_image(fig)
                     pdf.add_image(img_path)

@@ -7,6 +7,8 @@ import numpy as np
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn")
 
+from . import BaseBinning
+
 
 __all__ = [
     'CH_Binning'
@@ -205,14 +207,92 @@ class CH_Binning():
 
 
 
-if __name__ == '__main__':
-    df = {
-        'Grade': [0]*(95+309) + [1]*(187+224) + [2]*(549+299) + [3]*(1409+495) + [4]*(3743+690) + [5]*(4390+424) + [6]*(2008+94) + [7]*(593+8),
-        'y_true': [0]*95+[1]*309 + [0]*187+[1]*224 + [0]*549+[1]*299 + [0]*1409+[1]*495 + [0]*3743+[1]*690 + [0]*4390+[1]*424 + [0]*2008+[1]*94 + [0]*593+[1]*8,
-        'y_pred': [309/(95+309)]*(95+309) + [224/(187+224)]*(187+224) + [299/(549+299)]*(549+299) + [495/(1409+495)]*(1409+495) + [690/(3743+690)]*(3743+690) + [424/(4390+424)]*(4390+424) + [94/(2008+94)]*(2008+94) + [8/(593+8)]*(593+8)
-    }
-    df = pd.DataFrame(df)
 
-    model = CH_Binning()
-    model.fit(df['y_pred'], df['y_true'])
-    print(model.transform(df['y_pred'],))
+
+
+
+
+# class CH_Binning(BaseBinning):
+#     def __init__(self, min_n_bins:int=2, max_n_bins:int=15, n_bins:int=None,
+#                  dtype:Literal['numerical','categorical']='numerical',
+#                  transform_func:Literal['alphabet','sequence','normalize']='alphabet'):
+#         super().__init__(min_n_bins=min_n_bins, max_n_bins=max_n_bins, n_bins=n_bins,
+#                          dtype=dtype, transform_func=transform_func, solver='calinski-harabasz')
+
+
+#     def _fit(self, x:list, y:list=None, n_bins:int=5):
+#         self.optbin_model_ = OptimalBinning(dtype=self.dtype, solver="cp", 
+#                                     min_n_bins=n_bins, max_n_bins=n_bins)
+#         self.optbin_model_.fit(x, y)
+#         return self
+
+
+#     def _transform(self, x:list):
+#         if (self.dtype == 'numerical'):
+#             pred_ = self.optbin_model_.transform(x, metric='bins')
+#             return pred_
+#         if (self.dtype == 'categorical'):
+#             pred_ = self.optbin_model_.transform(x, metric='bins')
+#             if (self.transform_func == 'alphabet'):
+#                 pred_ = self._convert_categorical(bins=self.bins_map, list_=pred_)
+#             elif (self.transform_func == 'sequence'):
+#                 pred_ = self._convert_categorical_to_numerical(bins=self.bins_map, list_=pred_)
+#             elif (self.transform_func == 'normalize'):
+#                 pred_ = self._convert_categorical_to_normal(bins=self.bins_map, list_=pred_)
+#             return pred_
+#         raise TypeError('No suport for this ``dtype``')
+
+
+#     def _convert_categorical(self, bins:dict, list_:list):
+#         bins = dict(sorted(bins.items(), key=lambda item: item[1]))
+#         letter = 0
+#         for key in list(bins.keys()):
+#             if key == 'Missing':
+#                 bins[key] = 'None'
+#             else:
+#                 bins[key] = chr(65 + letter)
+#                 letter += 1
+
+#         self.bins_map = bins
+#         return [bins[label] for label in list_]
+
+
+#     def _convert_categorical_to_numerical(self, bins:dict, list_:list):
+#         bins = dict(sorted(bins.items(), key=lambda item: item[1]))
+#         weight = [round(1-(i/len(bins.keys())),6) for i in range(len(bins.keys()))]
+#         for key, value in zip(bins.keys(), weight):
+#             bins[key] = value
+
+#         self.bins_map = bins
+#         return [bins[label] for label in list_]
+
+
+#     def _convert_categorical_to_normal(self, bins:dict, list_:list):
+#         bins = dict(sorted(bins.items(), key=lambda item: item[1]))
+#         values = list(bins.values())
+#         _min = min(values)
+#         _max = max(values)
+#         for key, value in bins.items():
+#             bins[key] = round(abs((value - _max) / (_min - _max)),6)
+
+#         self.bins_map = bins
+#         return [bins[label] for label in list_]
+
+
+
+
+
+
+
+
+# if __name__ == '__main__':
+#     df = {
+#         'Grade': [0]*(95+309) + [1]*(187+224) + [2]*(549+299) + [3]*(1409+495) + [4]*(3743+690) + [5]*(4390+424) + [6]*(2008+94) + [7]*(593+8),
+#         'y_true': [0]*95+[1]*309 + [0]*187+[1]*224 + [0]*549+[1]*299 + [0]*1409+[1]*495 + [0]*3743+[1]*690 + [0]*4390+[1]*424 + [0]*2008+[1]*94 + [0]*593+[1]*8,
+#         'y_pred': [309/(95+309)]*(95+309) + [224/(187+224)]*(187+224) + [299/(549+299)]*(549+299) + [495/(1409+495)]*(1409+495) + [690/(3743+690)]*(3743+690) + [424/(4390+424)]*(4390+424) + [94/(2008+94)]*(2008+94) + [8/(593+8)]*(593+8)
+#     }
+#     df = pd.DataFrame(df)
+
+#     model = CH_Binning()
+#     model.fit(df['y_pred'], df['y_true'])
+#     print(model.transform(df['y_pred'],))

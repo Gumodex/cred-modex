@@ -9,7 +9,7 @@ __all__ = [
 class ExtraTree(ExtraTreeClassifier):
     def __init__(self, criterion='gini', splitter='random', max_depth=None,
                  min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0,
-                 max_features='auto', random_state=None, max_leaf_nodes=None,
+                 max_features='sqrt', random_state=None, max_leaf_nodes=None,
                  min_impurity_decrease=0.0, class_weight=None, ccp_alpha=0.0):
         super().__init__(criterion=criterion, splitter=splitter, max_depth=max_depth,
                          min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
