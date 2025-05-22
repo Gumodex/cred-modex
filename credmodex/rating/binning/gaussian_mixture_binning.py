@@ -4,6 +4,11 @@ from sklearn.mixture import GaussianMixture
 
 from . import BaseBinning
 
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
 
 __all__ = [
     'GMMBinning'

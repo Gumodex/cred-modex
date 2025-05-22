@@ -32,11 +32,6 @@ class BaseBinning(ABC):
             self.solver = 'n_bins'
         
         self.model = None
-    
-
-    @abstractmethod
-    def _fit(self, x:list, y:list=None, n_bins:int=None):
-        return self._fit(x, y, n_bins)
 
 
     def fit(self, x:list, y:list=None):
@@ -52,36 +47,43 @@ class BaseBinning(ABC):
     def _fit_ch(self, x:list, y:list=None):
         self.ch_model_ = -1
         self.ch_model_dict_ = {}
-        for i in range(self.min_n_bins, self.max_n_bins+1):
-            model_ = self._fit(x, y, n_bins=i)
+        best_model = None  # Track best model
 
-            if self.dtype in {'categorical'}:
-                fitted_ = model_.transform(x)
-                df = pd.DataFrame({'bin': fitted_, 'target': y})
-                bins_map = df.groupby('bin')['target'].mean().to_dict()
+        for i in range(self.min_n_bins, self.max_n_bins + 1):
+            try:
+                model_ = self._fit(x, y, n_bins=i)
+            except Exception as e:
+                continue
 
-                y_pred = [bins_map[b] for b in fitted_]
-            else:
-                fitted_ = self._transform(x)
-                y_pred = x 
-                bins_map = {}
+            try:
+                fitted_ = model_._transform(x)
+            except Exception:
+                continue
+
+            try:
+                if self.dtype == 'categorical':
+                    df = pd.DataFrame({'bin': fitted_, 'target': y})
+                    bins_map = df.groupby('bin')['target'].mean().to_dict()
+                    y_pred = [bins_map[b] for b in fitted_]
+                else:
+                    y_pred = x
+            except:
+                continue
 
             new_ch_model_ = BaseBinning.calinski_harabasz(y_pred=y_pred, bins=fitted_)
             self.ch_model_dict_[i] = new_ch_model_
-            
-            if (new_ch_model_ > self.ch_model_) and (~np.isinf(new_ch_model_)):
+
+            if new_ch_model_ > self.ch_model_ and not np.isinf(new_ch_model_):
                 self.ch_model_ = new_ch_model_
                 self.n_bins_ = i
-                self.model = model_
-                self.bins_map = bins_map
-                            
-        if not hasattr(self, 'model'):
-            raise TypeError('No optimum binning was found in the range interval for X and Y.')
-        else:
-            self.fitted = True
+                best_model = model_
 
-        self._copy_model_attributes()
-            
+        if best_model is None:
+            print("⚠️ No valid model selected. CH scores:", self.ch_model_dict_)
+            raise TypeError("No optimum binning was found.")
+
+        self.model = best_model
+        self.fitted = True
         return self.model
 
 
@@ -91,20 +93,14 @@ class BaseBinning(ABC):
 
 
     def transform(self, x:list):
-        if not self.fitted:
-            raise ValueError("You must call `fit` before `transform`.")
-        return self._transform(x)
+        if not self.fitted or self.model is None:
+            raise ValueError("Model not fitted. Call `fit()` first.")
+        return self.model._transform(x)
 
 
     def fit_transform(self, x:list, y:list=None):
         self.fit(x, y)
-        return self.transform(x)
-
-
-    def _copy_model_attributes(self):
-        for attr in dir(self.model):
-            if not attr.startswith('_') and not callable(getattr(self.model, attr)):
-                setattr(self, attr, getattr(self.model, attr))
+        return self.model.transform(x)
 
     
     @staticmethod
