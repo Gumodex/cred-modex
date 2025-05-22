@@ -106,7 +106,7 @@ class BaseModel:
 
 
     def fit_predict(self):
-        self.df = self.treatment(self.df)
+        self.df = self.treatment(self.df).copy(deep=True)
         self.train_test_()
         predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else None
 
@@ -370,11 +370,14 @@ class BaseModel:
             y_true = rating.df[rating.target]
             y_pred = rating.df['rating']
 
-            iv = IV_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
-            ks = KS_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
-            psi = PSI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
-            gini = GINI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)/100
-            auc = round((gini+1)/2, 4)
+            try: iv = IV_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            except: iv = np.nan
+            try: ks = KS_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            except: ks = np.nan
+            try: psi = PSI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            except: psi = np.nan
+            try: gini = GINI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)/100; auc = round((gini+1)/2, 4)
+            except: gini = np.nan; auc = np.nan
 
             contingency_table = pd.crosstab(y_pred, y_true)
             chi2_stat, p_val_chi2, _, _ = chi2_contingency(contingency_table)

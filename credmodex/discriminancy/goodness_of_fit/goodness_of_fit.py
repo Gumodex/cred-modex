@@ -1066,8 +1066,9 @@ class GoodnessFit:
         denominator = (N_G - 1) * (N_B - 1)
         engelmann = numerator / denominator
 
-        gini_lower = gini - 1.96 * np.sqrt(engelmann)
-        gini_upper = gini + 1.96 * np.sqrt(engelmann)
+        with np.errstate(invalid='ignore'):
+            gini_lower = gini - 1.96 * np.sqrt(engelmann)
+            gini_upper = gini + 1.96 * np.sqrt(engelmann)
 
         if (info == True):
             return {

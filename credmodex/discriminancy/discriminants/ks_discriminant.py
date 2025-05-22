@@ -31,7 +31,7 @@ class KS_Discriminant():
             else:
                 try: col = random.choice(self.features)
                 except: raise ValueError("A column (col) must be provided")
-        
+
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return None
 

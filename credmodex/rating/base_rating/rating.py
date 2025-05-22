@@ -59,14 +59,11 @@ class Rating():
             self.doc = None
 
         if (self.type == 'score'):
-            try: self.fit_predict_score()
-            except: 
-                if not getattr(self, 'suppress_warnings', False):
-                    warnings.warn(
-                        'Could not operate `fit_predict_score()`. '
-                        'Column "rating" might be missing in df if not provided before.',
-                        category=UserWarning
-                    )
+            try:
+                self.fit_predict_score()
+            except Exception as e:
+                print("ERROR IN fit_predict_score:", str(e))
+                raise
 
     
     def train_test_(self):
@@ -151,10 +148,13 @@ class Rating():
         return bin_map
                 
 
-    def plot_stability_in_time(self, initial_date:str=None, upto_date:str=None, col:str='rating', 
+    def plot_stability_in_time(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating', 
                                agg_func:str='mean', percent:bool=True, width=800, height=600, 
                                color_seq:px.colors=px.colors.sequential.Turbo, **kwargs):
-        dff = self.df.copy(deep=True)
+        if (df is not None):
+            dff = df.copy(deep=True)
+        else:
+            dff = self.df.copy(deep=True)
     
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -199,7 +199,7 @@ class Rating():
         return fig
     
 
-    def plot_migration_analysis(self, index:str='rating', column:str='rating', agg_func:str='count', 
+    def plot_migration_analysis(self, df:pd.DataFrame=None, index:str='rating', column:str='rating', agg_func:str='count', 
                                 z_normalizer:int=None, z_format:str=None, replace_0_None:bool=False,
                                 initial_date:str=None, upto_date:str=None, width=800, height=600,
                                 show_fig:bool=True, colorscale:str='algae', xaxis_side:str='bottom'):
@@ -247,7 +247,10 @@ class Rating():
             - Returns a pivot table summarizing migration trends.
 
         '''
-        dff = self.df.copy(deep=True)
+        if (df is not None):
+            dff = df.copy(deep=True)
+        else:
+            dff = self.df.copy(deep=True)
         
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -308,12 +311,15 @@ class Rating():
         else: return migration_dff
 
     
-    def plot_gains_per_risk_group(self, initial_date:str=None, upto_date:str=None, col:str='rating',
+    def plot_gains_per_risk_group(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating',
                                   agg_func:str='mean', color_seq:px.colors=px.colors.sequential.Turbo, 
                                   show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, 
                                   width=800, height=600 ,**kwargs):
         
-        dff = self.df.copy(deep=True)
+        if (df is not None):
+            dff = df.copy(deep=True)
+        else:
+            dff = self.df.copy(deep=True)
 
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)

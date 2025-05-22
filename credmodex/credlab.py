@@ -293,9 +293,12 @@ class CredLab:
             wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
             deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
 
-            iv = IV_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
-            ks = KS_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
-            psi = PSI_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            try: iv = IV_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            except: iv = np.nan
+            try: ks = KS_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            except: ks = np.nan
+            try: psi = PSI_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            except: psi = np.nan
 
             contingency_table = pd.crosstab(y_pred, y_true)
             chi2_stat, p_val_chi2, _, _ = chi2_contingency(contingency_table)
@@ -338,9 +341,11 @@ class CredLab:
     def eval_best_rating(self, sort:str=None):
         dff = pd.DataFrame()
         for model_name, model in self.models.items():
-            dff_ = model.eval_best_rating()
-
-            dff = pd.concat([dff, dff_], axis=1)
+            try: 
+                dff_ = model.eval_best_rating()
+                dff = pd.concat([dff, dff_], axis=1)
+            except: 
+                ...
         
         try:
             sort = sort.lower()
