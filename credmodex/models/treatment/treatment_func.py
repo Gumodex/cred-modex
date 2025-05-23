@@ -1,13 +1,16 @@
 import pandas as pd
 import sys
 import os
+import re
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating import CH_Binning
 
+
 __all__ = [
     'TreatentFunc'
 ]
+
 
 class TreatentFunc():
     def __init__(self, df:pd.DataFrame=None, target:str=None):
@@ -137,5 +140,63 @@ class TreatentFunc():
         col = self._check_col(col)
         for c in col:
             self.df[c] = self.df[c].fillna(value)
+
+        return self.df[col]
+    
+
+    def exclude_columns(self, col:list|str=None):
+        col = self._check_col(col)
+        for c in col:
+            if c in self.df.columns:
+                del self.df[c]
+
+        return self.df
+    
+
+    def min_max_float_columns(self, col:list|str=None, 
+                              min_value:float=0, max_value:float=1):
+        col = self._check_float_col(col)
+        for c in col:
+            self.df[c] = (self.df[c] - min_value) / (max_value - min_value)
+            self.df[c] = self.df[c].clip(lower=min_value, upper=max_value)
+
+        return self.df[col]
+    
+
+    def normalize_float_columns(self, col:list|str=None, 
+                                min_value:float=0, max_value:float=1):
+        col = self._check_float_col(col)
+        for c in col:
+            self.df[c] = (self.df[c] - self.df[c].min()) / (self.df[c].max() - self.df[c].min())
+            self.df[c] = self.df[c].clip(lower=min_value, upper=max_value)
+
+        return self.df[col]
+    
+
+    def map_str_dict(self, col:list|str=None, mapping_dict:dict=None):
+        col = self._check_str_col(col)
+        if mapping_dict is None:
+            raise ValueError("You must specify a mapping dictionary.")
+        
+        for c in col:
+            if c not in mapping_dict.keys():
+                mapping_dict[c] = mapping_dict
+                
+            flat_map = {}
+            self.df[c] = self.df[c].fillna('Missing')
+
+            for levels, value in mapping_dict[c].items():
+
+                # Tranform the string representation of the list into a Python list
+                clean_levels = re.findall(r"'(.*?)'", levels)
+                # Handle 'Missing' or Strings
+                if (clean_levels == []):
+                    clean_levels = [levels]
+
+                # Transform it into a map dict
+                for level in clean_levels:
+                    flat_map[level] = value
+                
+            self.df[c] = self.df[c].map(flat_map)
 
         return self.df[col]
