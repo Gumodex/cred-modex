@@ -200,3 +200,20 @@ class TreatentFunc():
             self.df[c] = self.df[c].map(flat_map)
 
         return self.df[col]
+    
+
+    def exclude_str_columns(self):
+        col = self._check_str_col(self.df.columns.tolist())
+        for c in col:
+            if (c in self.df.columns) and (c not in self.forbidden_cols):
+                del self.df[c]
+
+        return self.df
+    
+    
+    def exclude_nan_columns(self, col:list|str=None):
+        col = self._check_col(col)
+        for c in col:
+            self.df = self.df[self.df[c].notna()]
+
+        return self.df

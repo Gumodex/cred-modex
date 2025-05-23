@@ -118,7 +118,7 @@ class KS_Discriminant():
     
 
     def plot(self, col:str=None, sort:Literal[None,'ascendng']=None, 
-             graph_library:str=Literal['plotly','matplotlib'], width:int=900, height:int=450):
+             graph_library:Literal['plotly','matplotlib']='plotly', width:int=900, height:int=450):
         if col is None:
             if ('score' in self.features):
                 col = 'score'

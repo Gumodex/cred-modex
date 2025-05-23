@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import inspect
-from typing import Union
+from typing import Union, Literal
 import warnings
 import os
 from pprint import pprint, pformat
@@ -362,21 +362,27 @@ class BaseModel:
             return pdf
         
 
-    def eval_best_rating(self, sort:str=None):
+    def eval_best_rating(self, sort:str=None, split:Literal['train','test']=None):
         
         metrics_dict = {}
 
         for rating_name, rating in self.ratings.items():
-            y_true = rating.df[rating.target]
-            y_pred = rating.df['rating']
+            if (split is not None):
+                y_true = rating.df[self.df['split'] == split][rating.target]
+                y_pred = rating.df[self.df['split'] == split]['rating']
+                dff = rating.df[self.df['split'] == split].copy(deep=True)
+            else:
+                y_true = rating.df[rating.target]
+                y_pred = rating.df['rating']
+                dff = rating.df.copy(deep=True)
 
-            try: iv = IV_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            try: iv = IV_Discriminant(dff, rating.target, ['rating']).value('rating', final_value=True)
             except: iv = np.nan
-            try: ks = KS_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            try: ks = KS_Discriminant(dff, rating.target, ['rating']).value('rating', final_value=True)
             except: ks = np.nan
-            try: psi = PSI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)
+            try: psi = PSI_Discriminant(dff, rating.target, ['rating']).value('rating', final_value=True)
             except: psi = np.nan
-            try: gini = GINI_Discriminant(rating.df, rating.target, ['rating']).value('rating', final_value=True)/100; auc = round((gini+1)/2, 4)
+            try: gini = GINI_Discriminant(dff, rating.target, ['rating']).value('rating', final_value=True)/100; auc = round((gini+1)/2, 4)
             except: gini = np.nan; auc = np.nan
 
             contingency_table = pd.crosstab(y_pred, y_true)
@@ -384,8 +390,8 @@ class BaseModel:
             if (p_val_chi2 < 0.05): chi2 = 'Significant Discr.'
             else: chi2 = 'No Significant Discr.'
 
-            y_true = rating.df[rating.target]
-            y_pred = rating.df.groupby('rating')[self.target].transform('mean')
+            y_true = dff[rating.target]
+            y_pred = dff.groupby('rating')[self.target].transform('mean')
 
             hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
             log_likelihood = GoodnessFit.log_likelihood(y_true=y_true, y_pred=y_pred)

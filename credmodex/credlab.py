@@ -1,7 +1,7 @@
 import sys
 import os
 import warnings
-from typing import Union
+from typing import Union, Literal
 
 from pprint import pprint, pformat
 import pandas as pd
@@ -104,7 +104,6 @@ class CredLab:
         self.y_train = self.df[self.df['split'] == 'train'][self.target]
         self.y_test = self.df[self.df['split'] == 'test'][self.target]
 
-        
 
     def plot_train_test_split(self, graph_lib:str='plotly', freq='%Y-%m', width:int=900, height:int=450):
         self.df.loc[:, 'id'] = 1
@@ -276,12 +275,18 @@ class CredLab:
             print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
 
 
-    def eval_best_model(self, sort:str=None):
+    def eval_best_model(self, sort:str=None, split:Literal['train','test']=None):
         metrics_dict = {}
 
         for model_name, model in self.models.items():
-            y_true = model.df[model.target]
-            y_pred = model.df['score']
+            if (split is not None):
+                y_true = model.df[self.df['split'] == split][model.target]
+                y_pred = model.df[self.df['split'] == split]['score']
+                dff = model.df[self.df['split'] == split].copy(deep=True)
+            else:
+                y_true = model.df[model.target]
+                y_pred = model.df['score']
+                dff = model.df.copy(deep=True)
 
             auc, auc_variance = GoodnessFit.delong_roc_variance(y_true=y_true, y_pred=y_pred)
             gini_info = GoodnessFit.gini_variance(y_true=y_true, y_pred=y_pred, info=True)
@@ -291,15 +296,15 @@ class CredLab:
             hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
             log_likelihood = GoodnessFit.log_likelihood(y_true=y_true, y_pred=y_pred)
             aic = GoodnessFit.aic(y_true=y_true, y_pred=y_pred, n_features=model.n_features)
-            bic = GoodnessFit.bic(y_true=y_true, y_pred=y_pred, n_features=model.n_features, sample_size=len(model.df))
+            bic = GoodnessFit.bic(y_true=y_true, y_pred=y_pred, n_features=model.n_features, sample_size=len(dff))
             wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
             deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
 
-            try: iv = IV_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            try: iv = IV_Discriminant(dff, model.target, ['score']).value('score', final_value=True)
             except: iv = np.nan
-            try: ks = KS_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            try: ks = KS_Discriminant(dff, model.target, ['score']).value('score', final_value=True)
             except: ks = np.nan
-            try: psi = PSI_Discriminant(model.df, model.target, ['score']).value('score', final_value=True)
+            try: psi = PSI_Discriminant(dff, model.target, ['score']).value('score', final_value=True)
             except: psi = np.nan
 
             contingency_table = pd.crosstab(y_pred, y_true)
@@ -340,11 +345,11 @@ class CredLab:
         return dff
 
 
-    def eval_best_rating(self, sort:str=None):
+    def eval_best_rating(self, sort:str=None, split:Literal['train','test']=None):
         dff = pd.DataFrame()
         for model_name, model in self.models.items():
             try: 
-                dff_ = model.eval_best_rating()
+                dff_ = model.eval_best_rating(split=split)
                 dff = pd.concat([dff, dff_], axis=1)
             except: 
                 ...
