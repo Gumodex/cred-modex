@@ -111,7 +111,7 @@ class BaseModel:
         predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else None
 
         if ('func' in predict_type) or callable(self.model):
-            self.df = self.model(self.df)
+            self.df = self.model(self.df).copy(deep=True)
             return
 
         self.model = self.model.fit(self.X_train, self.y_train)

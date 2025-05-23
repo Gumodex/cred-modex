@@ -18,10 +18,14 @@ __all__ = [
 
 
 class GINI_Discriminant():
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
         self.df = df
         self.target = target
+        
+        if isinstance(features,str):
+            features = [features]
         self.features = features
+
 
 
     def value(self, col:str=None, is_continuous:bool=False, max_n_bins:int=30, force_discrete:bool=False, percent:bool=True, final_value:bool=False):

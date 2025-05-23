@@ -91,6 +91,7 @@ class CredLab:
             # Separate features and target
             train = train.index.to_list()
             test = test.index.to_list()
+            del self.df['scaled']
 
         self.df.loc[train, 'split'] = 'train'
         self.df.loc[test, 'split'] = 'test'
@@ -102,6 +103,7 @@ class CredLab:
         self.X_test = self.df[self.df['split'] == 'test'][self.features]
         self.y_train = self.df[self.df['split'] == 'train'][self.target]
         self.y_test = self.df[self.df['split'] == 'test'][self.target]
+
         
 
     def plot_train_test_split(self, graph_lib:str='plotly', freq='%Y-%m', width:int=900, height:int=450):

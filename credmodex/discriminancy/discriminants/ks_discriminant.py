@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+from typing import Literal
 
 import pandas as pd
 import numpy as np
@@ -18,9 +19,12 @@ __all__ = [
 ]
 
 class KS_Discriminant():
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
         self.df = df
         self.target = target
+
+        if isinstance(features,str):
+            features = [features]
         self.features = features
 
 
@@ -113,7 +117,8 @@ class KS_Discriminant():
         return KS_Value.sort_values(by='KS', ascending=False)
     
 
-    def plot(self, col:str=None, sort:str=None, graph_library:str='plotly', width:int=900, height:int=450):
+    def plot(self, col:str=None, sort:Literal[None,'ascendng']=None, 
+             graph_library:str=Literal['plotly','matplotlib'], width:int=900, height:int=450):
         if col is None:
             if ('score' in self.features):
                 col = 'score'

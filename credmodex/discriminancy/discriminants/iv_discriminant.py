@@ -11,11 +11,15 @@ __all__ = [
 
 
 class IV_Discriminant():
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:list[str]=None):
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
         self.df = df
+
         self.target = target
-        self.features = features
         assert set(self.df[self.target].unique()) == {0, 1}, "Target must be binary 0/1"
+        
+        if isinstance(features,str):
+            features = [features]
+        self.features = features
 
 
     def value(self, col:str=None, final_value:bool=False):
