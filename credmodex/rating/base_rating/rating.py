@@ -2,7 +2,7 @@ import sys
 import os
 import warnings
 import inspect
-from typing import Union
+from typing import Union, Literal
 
 import pandas as pd
 import numpy as np
@@ -149,12 +149,20 @@ class Rating():
                 
 
     def plot_stability_in_time(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating', 
-                               agg_func:str='mean', percent:bool=True, width=800, height=600, 
+                               agg_func:str='mean', percent:bool=True, split:Literal['train','test']=None, width=800, height=600, 
                                color_seq:px.colors=px.colors.sequential.Turbo, **kwargs):
         if (df is not None):
             dff = df.copy(deep=True)
         else:
             dff = self.df.copy(deep=True)
+
+        if (split is not None):
+            if split.lower() == 'train':
+                dff = dff[dff['split'] == 'train']
+            elif split.lower() == 'test':
+                dff = dff[dff['split'] == 'test']
+            else:
+                raise ValueError("Invalid split value. Use 'train' or 'test'.")
     
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -202,7 +210,8 @@ class Rating():
     def plot_migration_analysis(self, df:pd.DataFrame=None, index:str='rating', column:str='rating', agg_func:str='count', 
                                 z_normalizer:int=None, z_format:str=None, replace_0_None:bool=False,
                                 initial_date:str=None, upto_date:str=None, width=800, height=600,
-                                show_fig:bool=True, colorscale:str='algae', xaxis_side:str='bottom'):
+                                show_fig:bool=True, colorscale:str='algae', xaxis_side:str='bottom', 
+                                split:Literal['train','test']=None):
         '''
         Analyzes migration patterns within a dataset by aggregating values based on the given parameters. 
         The function generates a heatmap visualization of migration trends based on rating changes over time.
@@ -251,6 +260,14 @@ class Rating():
             dff = df.copy(deep=True)
         else:
             dff = self.df.copy(deep=True)
+
+        if (split is not None):
+            if split.lower() == 'train':
+                dff = dff[dff['split'] == 'train']
+            elif split.lower() == 'test':
+                dff = dff[dff['split'] == 'test']
+            else:
+                raise ValueError("Invalid split value. Use 'train' or 'test'.")
         
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -313,13 +330,21 @@ class Rating():
     
     def plot_gains_per_risk_group(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating',
                                   agg_func:str='mean', color_seq:px.colors=px.colors.sequential.Turbo, 
-                                  show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, 
-                                  width=800, height=600 ,**kwargs):
+                                  show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, split:Literal['train','test']=None, 
+                                  width=800, height=600, **kwargs):
         
         if (df is not None):
             dff = df.copy(deep=True)
         else:
             dff = self.df.copy(deep=True)
+
+        if (split is not None):
+            if split.lower() == 'train':
+                dff = dff[dff['split'] == 'train']
+            elif split.lower() == 'test':
+                dff = dff[dff['split'] == 'test']
+            else:
+                raise ValueError("Invalid split value. Use 'train' or 'test'.")
 
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -350,6 +375,7 @@ class Rating():
             df = df.sort_values(by='percent', ascending=False).reset_index(drop=True)
             del df['colors']
             df = pd.concat([df, colors], axis=1)
+            df = df.astype({'ratings':str})
 
         fig = go.Figure()
         plotly_main_layout(fig, title='Gains per Risk Group', x=col, y='Percent', width=width, height=height, **kwargs)

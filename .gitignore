@@ -1,7 +1,9 @@
 # Update.txt
 update.txt
 Desfiante Enel.ipynb
-.csv
+enel_sp.csv
+enel_rj.csv
+enel_ce.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
