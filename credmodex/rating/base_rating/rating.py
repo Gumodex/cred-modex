@@ -149,8 +149,8 @@ class Rating():
                 
 
     def plot_stability_in_time(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating', 
-                               agg_func:str='mean', percent:bool=True, split:Literal['train','test']=None, width=800, height=600, 
-                               color_seq:px.colors=px.colors.sequential.Turbo, **kwargs):
+                               agg_func:str='mean', percent:bool=True, split:Literal['train','test']=None, sample:float=None, 
+                               width=800, height=600, color_seq:px.colors=px.colors.sequential.Turbo, **kwargs):
         if (df is not None):
             dff = df.copy(deep=True)
         else:
@@ -163,6 +163,15 @@ class Rating():
                 dff = dff[dff['split'] == 'test']
             else:
                 raise ValueError("Invalid split value. Use 'train' or 'test'.")
+            
+        if (sample is not None):
+            sample = np.abs(sample)
+            if (sample <= 1):
+                dff = dff.sample(frac=sample, random_state=42)
+            elif (sample > 1):
+                if (sample > len(dff)):
+                    raise ValueError(f"Sample size {sample} is larger than the dataset size {len(dff)}.")
+                dff = dff.sample(n=sample, random_state=42)
     
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -209,7 +218,7 @@ class Rating():
 
     def plot_migration_analysis(self, df:pd.DataFrame=None, index:str='rating', column:str='rating', agg_func:str='count', 
                                 z_normalizer:int=None, z_format:str=None, replace_0_None:bool=False,
-                                initial_date:str=None, upto_date:str=None, width=800, height=600,
+                                initial_date:str=None, upto_date:str=None, sample:float=None, width=800, height=600,
                                 show_fig:bool=True, colorscale:str='algae', xaxis_side:str='bottom', 
                                 split:Literal['train','test']=None):
         '''
@@ -268,6 +277,15 @@ class Rating():
                 dff = dff[dff['split'] == 'test']
             else:
                 raise ValueError("Invalid split value. Use 'train' or 'test'.")
+            
+        if (sample is not None):
+            sample = np.abs(sample)
+            if (sample <= 1):
+                dff = dff.sample(frac=sample, random_state=42)
+            elif (sample > 1):
+                if (sample > len(dff)):
+                    raise ValueError(f"Sample size {sample} is larger than the dataset size {len(dff)}.")
+                dff = dff.sample(n=sample, random_state=42)
         
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -329,7 +347,7 @@ class Rating():
 
     
     def plot_gains_per_risk_group(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating',
-                                  agg_func:str='mean', color_seq:px.colors=px.colors.sequential.Turbo, 
+                                  agg_func:str='mean', color_seq:px.colors=px.colors.sequential.Turbo, sample:float=None,
                                   show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, split:Literal['train','test']=None, 
                                   width=800, height=600, **kwargs):
         
@@ -345,6 +363,15 @@ class Rating():
                 dff = dff[dff['split'] == 'test']
             else:
                 raise ValueError("Invalid split value. Use 'train' or 'test'.")
+            
+        if (sample is not None):
+            sample = np.abs(sample)
+            if (sample <= 1):
+                dff = dff.sample(frac=sample, random_state=42)
+            elif (sample > 1):
+                if (sample > len(dff)):
+                    raise ValueError(f"Sample size {sample} is larger than the dataset size {len(dff)}.")
+                dff = dff.sample(n=sample, random_state=42)
 
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
