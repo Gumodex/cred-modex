@@ -170,11 +170,11 @@ class PSI_Discriminant():
 
         except: 
             try:
-                if (discrete) or (~pd.api.types.is_numeric_dtype(self.df[col])):
+                if (discrete == True) or (~pd.api.types.is_numeric_dtype(self.df[col])):
                     dff = dff[dff.index != 'Total']
 
                     if (sort == True):
-                        dff = dff.sort(ascending=True)
+                        dff = dff.sort_index(ascending=True)
 
                     fig = go.Figure()
                     fig.add_trace(go.Bar(

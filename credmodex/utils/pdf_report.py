@@ -79,7 +79,7 @@ class PDF_Report(FPDF):
         self.rect(0, 0, self.w, self.h, style='F')
 
         # Add centered text
-        self.set_font('COurier', 'B', 52)
+        self.set_font('Courier', 'B', 52)
         self.set_text_color(240, 240, 240)
 
         # Calculate vertical center
@@ -127,7 +127,7 @@ class PDF_Report(FPDF):
 
 
     def add_dataframe_split(self, df, chunk_size=3, title_prefix='Score Comparison'):
-        self.reference_name_page = title_prefix
+        # self.reference_name_page = title_prefix
         self.set_font('Courier', '', 8)
         self.set_text_color(20)
         num_chunks = math.ceil(len(df.columns) / chunk_size)

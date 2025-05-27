@@ -374,7 +374,7 @@ class CredLab:
             pdf.add_chapter_model_page(text=f'{pdf.reference_name_page}')
             
             pdf.add_page()
-            best_model_table = self.eval_best_model()
+            best_model_table = self.eval_best_model(sort='ks')
             pdf.add_dataframe_split(best_model_table, chunk_size=3)
         except:
             ...

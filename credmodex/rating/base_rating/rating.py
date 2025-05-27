@@ -167,11 +167,11 @@ class Rating():
         if (sample is not None):
             sample = np.abs(sample)
             if (sample <= 1):
-                dff = dff.sample(frac=sample, random_state=42)
+                dff = dff.sample(frac=sample)
             elif (sample > 1):
                 if (sample > len(dff)):
                     raise ValueError(f"Sample size {sample} is larger than the dataset size {len(dff)}.")
-                dff = dff.sample(n=sample, random_state=42)
+                dff = dff.sample(n=sample)
     
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -281,11 +281,11 @@ class Rating():
         if (sample is not None):
             sample = np.abs(sample)
             if (sample <= 1):
-                dff = dff.sample(frac=sample, random_state=42)
+                dff = dff.sample(frac=sample)
             elif (sample > 1):
                 if (sample > len(dff)):
                     raise ValueError(f"Sample size {sample} is larger than the dataset size {len(dff)}.")
-                dff = dff.sample(n=sample, random_state=42)
+                dff = dff.sample(n=sample)
         
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
@@ -367,11 +367,11 @@ class Rating():
         if (sample is not None):
             sample = np.abs(sample)
             if (sample <= 1):
-                dff = dff.sample(frac=sample, random_state=42)
+                dff = dff.sample(frac=sample)
             elif (sample > 1):
                 if (sample > len(dff)):
                     raise ValueError(f"Sample size {sample} is larger than the dataset size {len(dff)}.")
-                dff = dff.sample(n=sample, random_state=42)
+                dff = dff.sample(n=sample)
 
         if initial_date is not None:
             initial_date = pd.to_datetime(initial_date)
