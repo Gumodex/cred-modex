@@ -362,7 +362,7 @@ class BaseModel:
             return pdf
         
 
-    def eval_best_rating(self, sort:str=None, split:Literal['train','test']=None):
+    def eval_best_rating(self, sort:str=None, split:Literal['train','test','oot']=None):
         
         metrics_dict = {}
 

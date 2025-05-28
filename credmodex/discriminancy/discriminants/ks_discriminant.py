@@ -18,6 +18,7 @@ __all__ = [
     'KS_Discriminant',
 ]
 
+
 class KS_Discriminant():
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
         self.df = df

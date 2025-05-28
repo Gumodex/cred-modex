@@ -1,4 +1,4 @@
-from .base_rating import Rating
+from .rating import Rating
 from .binning import (
     CH_Binning,
     BaseBinning,

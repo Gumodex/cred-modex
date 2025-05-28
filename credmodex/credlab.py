@@ -24,7 +24,7 @@ __all__ = [
 
 class CredLab:
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:Union[list[str],str]=None, time_column:str=None,
-                 test_size:float=0.1, split_type:str='random', seed:int=42):
+                 test_size:float=0.1, out_of_time:float=0.2, seed:int=42):
 
         if isinstance(features,str):
             features = [features]
@@ -56,42 +56,40 @@ class CredLab:
         self.test_size = test_size
         self.time_column = time_column
         if self.time_column is None:
-            split_type = 'random'
-        self.split_type = split_type
+            out_of_time = None
+        self.out_of_time = out_of_time
         self.train_test_split()
 
     
     def train_test_split(self):
         self.df = self.df.copy()
-        # If random split is selected
-        if self.split_type == 'random':
-            X = self.df.index.to_list()
-            train, test = sklearn.model_selection.train_test_split(X, test_size=self.test_size, random_state=self.seed)
-        # If time-based split is selected
-        elif self.split_type == 'time':
-            if self.time_column is None:
-                raise ValueError("A time column must be specified for time-based splitting.")
-            
-            # Ensure the time column is in datetime format
-            self.df[self.time_column] = pd.to_datetime(self.df[self.time_column])
 
-            # Sort by time column to ensure proper order
+        if (self.out_of_time is None) or (self.time_column is None):
+            self.df['split'] = 'on_time'
+        else:
+            self.df[self.time_column] = pd.to_datetime(self.df[self.time_column])
             self.df = self.df.sort_values(by=[self.time_column])
 
             # Define the cut-off date for the split
             self.df['scaled'] = (self.df[self.time_column] - self.df[self.time_column].min()) / (self.df[self.time_column].max() - self.df[self.time_column].min())
-            target_data_value = self.df[self.time_column].min() + (1-self.test_size) * (self.df[self.time_column].max() - self.df[self.time_column].min())
+            target_data_value = self.df[self.time_column].min() + (1-self.out_of_time) * (self.df[self.time_column].max() - self.df[self.time_column].min())
             cutoff_date = (self.df[self.time_column] - target_data_value).abs().idxmin()
             cutoff_date = self.df.loc[cutoff_date, self.time_column]
 
             # Filter data for the training and testing sets based on the cutoff date
-            train = self.df[self.df[self.time_column] <= cutoff_date]
-            test = self.df[self.df[self.time_column] > cutoff_date]
+            on_time = self.df[self.df[self.time_column] <= cutoff_date]
+            oot = self.df[self.df[self.time_column] > cutoff_date]
 
             # Separate features and target
-            train = train.index.to_list()
-            test = test.index.to_list()
+            on_time = on_time.index.to_list()
+            oot = oot.index.to_list()
             del self.df['scaled']
+
+            self.df.loc[on_time, 'split'] = 'on_time'
+            self.df.loc[oot, 'split'] = 'oot'
+
+        X = self.df[self.df['split'] == 'on_time'].index.to_list()
+        train, test = sklearn.model_selection.train_test_split(X, test_size=self.test_size, random_state=self.seed)
 
         self.df.loc[train, 'split'] = 'train'
         self.df.loc[test, 'split'] = 'test'

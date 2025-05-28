@@ -53,9 +53,6 @@ class PSI_Discriminant():
                 pd.DataFrame([add_min_max[-1]], columns=[col])
             ])
 
-
-
-
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return None
 
