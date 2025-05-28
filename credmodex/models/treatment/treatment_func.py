@@ -153,6 +153,13 @@ class TreatentFunc():
         return self.df
     
 
+    def include_columns(self, col:list|str=None):
+        col = self._check_col(col)
+        self.df = self.df.loc[:, self.df.columns.isin(col + self.forbidden_cols)]
+
+        return self.df
+    
+
     def min_max_float_columns(self, col:list|str=None, 
                               min_value:float=0, max_value:float=1):
         col = self._check_float_col(col)
