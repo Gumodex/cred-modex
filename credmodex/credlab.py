@@ -24,7 +24,7 @@ __all__ = [
 
 class CredLab:
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:Union[list[str],str]=None, time_column:str=None,
-                 test_size:float=0.1, out_of_time:float=0.2, seed:int=42):
+                 test_size:float=0.1, out_of_time:float|str=0.2, seed:int=42):
 
         if isinstance(features,str):
             features = [features]
@@ -66,7 +66,18 @@ class CredLab:
 
         if (self.out_of_time is None) or (self.time_column is None):
             self.df['split'] = 'on_time'
-        else:
+
+        elif isinstance(self.out_of_time, str):
+            self.df[self.time_column] = pd.to_datetime(self.df[self.time_column])
+            self.df = self.df.sort_values(by=[self.time_column])
+
+            on_time = self.df[self.df[self.time_column] <= self.out_of_time].index.to_list()
+            oot = self.df[self.df[self.time_column] > self.out_of_time].index.to_list()
+            
+            self.df.loc[on_time, 'split'] = 'on_time'
+            self.df.loc[oot, 'split'] = 'oot'
+
+        elif isinstance(self.out_of_time, float):
             self.df[self.time_column] = pd.to_datetime(self.df[self.time_column])
             self.df = self.df.sort_values(by=[self.time_column])
 
@@ -88,6 +99,9 @@ class CredLab:
             self.df.loc[on_time, 'split'] = 'on_time'
             self.df.loc[oot, 'split'] = 'oot'
 
+        else:
+            raise ValueError("´´out_of_time´´ must be a float or a string representing a date.")
+
         X = self.df[self.df['split'] == 'on_time'].index.to_list()
         train, test = sklearn.model_selection.train_test_split(X, test_size=self.test_size, random_state=self.seed)
 
@@ -108,6 +122,7 @@ class CredLab:
         self.grouped = self.df.groupby([pd.to_datetime(self.df[self.time_column]).dt.strftime(f'{freq}'),'split']).agg({'id': 'count'}).reset_index()
         train = self.grouped[self.grouped['split'] == 'train']
         test = self.grouped[self.grouped['split'] == 'test']
+        oot = self.grouped[self.grouped['split'] == 'oot']
 
         if graph_lib == 'plotly':
             fig = go.Figure()
@@ -120,6 +135,11 @@ class CredLab:
                 x=test[self.time_column],
                 y=test['id'],
                 name='Test', marker=dict(color='#704cae')
+            ))
+            fig.add_trace(go.Bar(
+                x=oot[self.time_column],
+                y=oot['id'],
+                name='OoT', marker=dict(color='#8edb29')
             ))
             from credmodex.utils.design import plotly_main_layout
             plotly_main_layout(fig, title='Train-Test Split', x='Time', y='Count', 
