@@ -19,7 +19,8 @@ from .non_parametric_models import (
     MLPerceptron,
     RandomForest, 
     Stacking, 
-    Voting
+    Voting,
+    XGBoost,
 )
 from .probability_models import (
     Gaussian,
@@ -48,6 +49,7 @@ __all__ = [
     'RandomForest',
     'Stacking',
     'Voting',
+    'XGBoost',
 
     'Gaussian',
     'Bernoulli',

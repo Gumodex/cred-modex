@@ -11,6 +11,7 @@ from .k_neighbors import KNeighbors
 from .multi_layer_perceptrons import MLPerceptron
 from .stacking import Stacking
 from .voting import Voting
+from .xgboost import XGBoost
 
 __all__ = [
     'NuSVM',
@@ -26,4 +27,5 @@ __all__ = [
     'MLPerceptron',
     'Stacking',
     'Voting',
+    'XGBoost',
 ]
