@@ -383,21 +383,23 @@ class CredLab:
 
 
     def models_relatory_pdf(self, comparison_cols:list[str]=[], pdf_name='project_report'):
-        if (len(self.models.items())  < 1):
+        if (len(self.models.items()) < 1):
             raise TypeError('There are no Models available! Please, add a Model with ``.add_model()``')
 
         pdf = PDF_Report()
 
-        try:
-            pdf.add_chapter_model_page(text=f'{pdf.reference_name_page}')
+        pdf.add_chapter_model_page(text=f'{pdf.reference_name_page}')
+        pdf.add_page()
+
+        fig = self.plot_train_test_split()
+        fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+        img_path = pdf.save_plotly_to_image(fig)
+        pdf.add_image(img_path, w=180)
+        os.remove(img_path)
+
+        best_model_table = self.eval_best_model(sort='ks')
+        pdf.add_dataframe_split(best_model_table, chunk_size=3, skip_page=3)
             
-            pdf.add_page()
-            best_model_table = self.eval_best_model(sort='ks')
-            pdf.add_dataframe_split(best_model_table, chunk_size=3)
-        except:
-            ...
-
-
         for model_name, model in self.models.items():
             pdf.add_chapter_model_page(text=model_name)
             pdf = model.model_relatory_pdf(

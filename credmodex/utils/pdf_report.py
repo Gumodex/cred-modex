@@ -126,21 +126,41 @@ class PDF_Report(FPDF):
         self.reference_name_page = f'{text1} ({text2})'
 
 
-    def add_dataframe_split(self, df, chunk_size=3, title_prefix='Score Comparison'):
-        # self.reference_name_page = title_prefix
-        self.set_font('Courier', '', 8)
-        self.set_text_color(20)
+    def add_dataframe_split(self, df, chunk_size=4, skip_page=3):
+        """
+        Splits a DataFrame horizontally (by columns) and renders each chunk as an image.
+        This avoids layout issues with multi_cell and large tables.
+        """
+        import tempfile
+        import matplotlib.pyplot as plt
+
+        df = df.copy(deep=True)
+
         num_chunks = math.ceil(len(df.columns) / chunk_size)
+
         for i in range(num_chunks):
-            cols = df.columns[i*chunk_size : (i+1)*chunk_size]
+            cols = df.columns[i * chunk_size: (i + 1) * chunk_size]
             chunk_df = df[cols].copy()
+            chunk_df = chunk_df.reset_index(drop=False)
 
-            table = tabulate(chunk_df.reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-            self.multi_cell(0, 3, str(table))
-            self.ln()
+            # Plot using matplotlib
+            fig, ax = plt.subplots(figsize=(8.5, 0.5 + 0.25 * len(chunk_df)))  # height based on rows
+            ax.axis('off')
+            table = ax.table(cellText=chunk_df.values,
+                            colLabels=chunk_df.columns,
+                            cellLoc='center',
+                            loc='center')
+            table.auto_set_font_size(False)
+            table.set_fontsize(8)
+            table.scale(1, 1.2)
 
-            if (((i+1)%3) == 0):
-                self.add_page()
+            # Save to temporary image
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+            plt.savefig(tmp_file.name, bbox_inches='tight', dpi=150)
+            plt.close(fig)
+
+            # Add new page and embed image
+            self.add_image(tmp_file.name, w=180)
 
 
     @staticmethod

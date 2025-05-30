@@ -9,6 +9,7 @@ from tabulate import tabulate
 
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+import plotly.subplots
 
 from sklearn.linear_model import LogisticRegression
 from scipy.stats import chi2_contingency
@@ -208,19 +209,12 @@ class BaseModel:
         else: ...
 
         pdf.add_page()
-        pdf.main_title(f'Score | {self.name}')
-
-        pdf.chapter_title('Main DataFrame')
-        pdf.add_dataframe_split(self.df.head(10), chunk_size=4)
-
-        pdf.add_page()
 
         try:
             ks = KS_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
 
-            ks_table = ks.table()
             pdf.chapter_title('Kolmogorov Smirnov')
-            pdf.add_dataframe_split(ks_table, chunk_size=4)
+            pdf.add_dataframe_split(ks.table(), chunk_size=5)
 
             fig = ks.plot()
             fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
@@ -231,13 +225,12 @@ class BaseModel:
             pdf.chapter_df(f"<log> KS failed: {str(e)}")
 
         try:
-            psi = PSI_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
+            psi = PSI_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols, enable_oot=True)
 
-            psi_table = psi.table()
             pdf.chapter_title('Population Stability Index')
-            pdf.add_dataframe_split(psi_table, chunk_size=4)
+            pdf.add_dataframe_split(psi.table(), chunk_size=5)
 
-            fig = psi.plot(add_min_max=[0, 1])
+            fig = psi.plot(add_min_max=[0, 1],)
             fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
             img_path = pdf.save_plotly_to_image(fig)
             pdf.add_image(img_path)
@@ -260,13 +253,11 @@ class BaseModel:
         except Exception as e:
             pdf.chapter_df(f"Plotting failed for {GINI_Discriminant.__name__}: {str(e)}")
 
-        pdf.add_page()
-
         try:
             iv = IV_Discriminant(df=self.df, target=self.target, features=['score'] + comparison_cols)
-            iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+
             pdf.chapter_title('Information Value')
-            pdf.chapter_df(str(iv_table))
+            pdf.add_dataframe_split(iv.table(), chunk_size=5)
         except Exception as e:
             pdf.chapter_df(f"IV Table failed: {str(e)}")
 
@@ -279,6 +270,7 @@ class BaseModel:
 
         try:
             deviance = GoodnessFit.deviance_odds(y_pred=self.df['score'], y_true=self.df[self.target], info=True)
+            deviance.pop('conclusion', None)
             pdf.chapter_title('Deviance Odds')
             pdf.chapter_df(pformat(deviance))
         except Exception as e:
@@ -294,65 +286,99 @@ class BaseModel:
                 pdf.main_title(f'Rating | {rating.name}')
 
                 try:
-                    pdf.chapter_title('Gains per Risk Group')
+                    pdf.chapter_title('Basic Analysis | Whole Population')
+                    fig_gains = rating.plot_gains_per_risk_group(split=['train','oot','test'])['data']
+                    fig_stab = rating.plot_stability_in_time(split=['train','oot','test'])['data']
+                    fig_stab_ = rating.plot_stability_in_time(split=['train','oot','test'], agg_func='count', percent=False, stackgroup=True)['data']
+                    fig_ks = KS_Discriminant(rating.df, target=self.target, features='rating').plot()['data']
 
-                    fig = rating.plot_gains_per_risk_group(width=800)
+                    fig = plotly.subplots.make_subplots(
+                        rows=2, cols=2,
+                        subplot_titles=(
+                            'Gains por Risk Group', 
+                            'Kolmogorov-Smirnov Discriminant',
+                            f'Stability in Time | Metric',
+                            'Stability in Time | Volumetry',
+                        ),
+                        vertical_spacing=0.1,
+                        horizontal_spacing=0.05,
+                        y_title='percent [%] | volume [*]', 
+                    )
+                    for fig_ in fig_gains:
+                        fig_.showlegend = False 
+                        fig.add_trace(fig_, row=1, col=1)
+                    for fig_ in fig_ks:
+                        fig.add_trace(fig_, row=1, col=2)
+                    for fig_ in fig_stab:
+                        fig_.showlegend = False 
+                        fig.add_trace(fig_, row=2, col=1)
+                    for fig_ in fig_stab_:
+                        fig_.showlegend = False 
+                        fig.add_trace(fig_, row=2, col=2)
+
+                    plotly_main_subplot_layout(fig, title=f'Basic Rating Evaluation | Train+Test', height=1000)
                     fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
                     img_path = pdf.save_plotly_to_image(fig)
-                    pdf.add_image(img_path, w=140)
+                    pdf.add_image(img_path, w=190)
                     os.remove(img_path)
                 except Exception as e:
-                    pdf.chapter_df(f"<log> gains per risk failed: {str(e)}")
-            
-                try:
-                    pdf.chapter_title('Stability in Time')
-
-                    fig = rating.plot_stability_in_time(width=800)
-                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-                    img_path = pdf.save_plotly_to_image(fig)
-                    pdf.add_image(img_path, w=140)
-                    os.remove(img_path)
-                except Exception as e:
-                    pdf.chapter_df(f"<log> stability in time failed: {str(e)}")
-
-                pdf.add_page()
+                    pdf.chapter_df(f"<log> gains and stability in time failed: {str(e)}")
 
                 try:
-                    ks = KS_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
+                    psi = PSI_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols, enable_oot=True)
 
-                    ks_table = tabulate(ks.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-                    pdf.chapter_title('Kolmogorov Smirnov')
-                    pdf.chapter_df(str(ks_table))
-
-                    fig = ks.plot(col='rating')
-                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
-                    img_path = pdf.save_plotly_to_image(fig)
-                    pdf.add_image(img_path)
-                    os.remove(img_path)
-                except Exception as e:
-                    pdf.chapter_df(f"<log> KS failed: {str(e)}")
-
-                try:
-                    psi = PSI_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
-
-                    psi_table = tabulate(psi.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
-                    pdf.chapter_title('Population Stability Index')
-                    pdf.chapter_df(psi_table)
-
-                    fig = psi.plot(col='rating', discrete=True, sort=True)
+                    fig = psi.plot(col='rating', discrete=True, sort=True,)
                     fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
                     img_path = pdf.save_plotly_to_image(fig)
                     pdf.add_image(img_path)
                     os.remove(img_path)
                 except Exception as e:
                     pdf.chapter_df(f"<log> PSI failed: {str(e)}")
-        
+
                 try:
-                    pdf.add_page()
-                    iv = IV_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
-                    iv_table = tabulate(iv.table().reset_index(drop=False), headers='keys', tablefmt='grid', showindex=False)
+                    pdf.chapter_title('Basic Analysis | Out of Time')
+                    fig_gains = rating.plot_gains_per_risk_group(split=['oot'])['data']
+                    fig_stab = rating.plot_stability_in_time(split=['oot'])['data']
+                    fig_stab_ = rating.plot_stability_in_time(split=['oot'], agg_func='count', percent=False, stackgroup=True)['data']
+                    fig_ks = KS_Discriminant(rating.df[rating.df['split'] == 'oot'], target=self.target, features='rating').plot()['data']
+
+                    fig = plotly.subplots.make_subplots(
+                        rows=2, cols=2,
+                        subplot_titles=(
+                            'Gains por Risk Group', 
+                            'Kolmogorov-Smirnov Discriminant',
+                            f'Stability in Time | Metric',
+                            'Stability in Time | Volumetry',
+                        ),
+                        vertical_spacing=0.1,
+                        horizontal_spacing=0.05,
+                        y_title='percent [%] | volume [*]', 
+                    )
+                    for fig_ in fig_gains:
+                        fig_.showlegend = False 
+                        fig.add_trace(fig_, row=1, col=1)
+                    for fig_ in fig_ks:
+                        fig.add_trace(fig_, row=1, col=2)
+                    for fig_ in fig_stab:
+                        fig_.showlegend = False 
+                        fig.add_trace(fig_, row=2, col=1)
+                    for fig_ in fig_stab_:
+                        fig_.showlegend = False 
+                        fig.add_trace(fig_, row=2, col=2)
+
+                    plotly_main_subplot_layout(fig, title=f'Basic Rating Evaluation | Out of Time', height=1000)
+                    fig.update_layout(margin=dict(l=70, r=70, t=70, b=70))
+                    img_path = pdf.save_plotly_to_image(fig)
+                    pdf.add_image(img_path, w=190)
+                    os.remove(img_path)
+                except Exception as e:
+                    pdf.chapter_df(f"<log> no out of time information available to use!: {str(e)}")
+
+                try:
                     pdf.chapter_title('Information Value')
-                    pdf.chapter_df(str(iv_table))
+                    iv = IV_Discriminant(df=rating.df, target=rating.target, features=['rating'] + comparison_cols)
+
+                    pdf.add_dataframe_split(iv.table(), chunk_size=5)
                 except Exception as e:
                     pdf.chapter_df(f"IV Table failed: {str(e)}")
 

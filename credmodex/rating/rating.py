@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating.binning import CH_Binning
+from credmodex.discriminancy.discriminants.ks_discriminant import KS_Discriminant
 from credmodex.utils import *
 
 
@@ -149,20 +150,20 @@ class Rating():
                 
 
     def plot_stability_in_time(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating', 
-                               agg_func:str='mean', percent:bool=True, split:Literal['train','test']=None, sample:float=None, 
-                               width=800, height=600, color_seq:px.colors=px.colors.sequential.Turbo, **kwargs):
+                               agg_func:str='mean', percent:bool=True, split:list|Literal['train','test','oot']=['train','test','oot'], 
+                               sample:float=None, width=800, height=600, color_seq:px.colors=px.colors.sequential.Turbo,
+                               stackgroup:bool|str=None, **kwargs):
         if (df is not None):
             dff = df.copy(deep=True)
         else:
             dff = self.df.copy(deep=True)
 
-        if (split is not None):
-            if split.lower() == 'train':
-                dff = dff[dff['split'] == 'train']
-            elif split.lower() == 'test':
-                dff = dff[dff['split'] == 'test']
-            else:
-                raise ValueError("Invalid split value. Use 'train' or 'test'.")
+        if isinstance(split, str):
+            split = [split]
+        try:
+            dff = dff[dff['split'].isin(split)]
+        except:
+            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
             
         if (sample is not None):
             sample = np.abs(sample)
@@ -199,13 +200,24 @@ class Rating():
 
         for rating, color in zip(ratings, colors):
             custom_data_values = dff.loc[rating, dff.columns].fillna(0).to_numpy() 
-            fig.add_trace(go.Scatter(
-                x=dff.columns,
-                y=dff.loc[rating].values,  
-                marker=dict(color=color, size=8),
-                name=str(rating),
-                line=dict(width=3),
-            ))
+            if (stackgroup is not None) and (stackgroup is not False):
+                fig.add_trace(go.Scatter(
+                    x=dff.columns,
+                    y=dff.loc[rating].values,  
+                    marker=dict(color=color, size=8),
+                    name=str(rating),
+                    line=dict(width=3),
+                    stackgroup=stackgroup,
+                    mode='lines+markers'
+                ))     
+            else:         
+                fig.add_trace(go.Scatter(
+                    x=dff.columns,
+                    y=dff.loc[rating].values,  
+                    marker=dict(color=color, size=8),
+                    name=str(rating),
+                    line=dict(width=3),
+                ))
             fig.update_traces(
                 patch={
                     'customdata': custom_data_values,
@@ -220,7 +232,7 @@ class Rating():
                                 z_normalizer:int=None, z_format:str=None, replace_0_None:bool=False,
                                 initial_date:str=None, upto_date:str=None, sample:float=None, width=800, height=600,
                                 show_fig:bool=True, colorscale:str='algae', xaxis_side:str='bottom', 
-                                split:Literal['train','test']=None):
+                                split:list|Literal['train','test','oot']=['train','test','oot']):
         '''
         Analyzes migration patterns within a dataset by aggregating values based on the given parameters. 
         The function generates a heatmap visualization of migration trends based on rating changes over time.
@@ -270,13 +282,12 @@ class Rating():
         else:
             dff = self.df.copy(deep=True)
 
-        if (split is not None):
-            if split.lower() == 'train':
-                dff = dff[dff['split'] == 'train']
-            elif split.lower() == 'test':
-                dff = dff[dff['split'] == 'test']
-            else:
-                raise ValueError("Invalid split value. Use 'train' or 'test'.")
+        if isinstance(split, str):
+            split = [split]
+        try:
+            dff = dff[dff['split'].isin(split)]
+        except:
+            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
             
         if (sample is not None):
             sample = np.abs(sample)
@@ -348,21 +359,20 @@ class Rating():
     
     def plot_gains_per_risk_group(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating',
                                   agg_func:str='mean', color_seq:px.colors=px.colors.sequential.Turbo, sample:float=None,
-                                  show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, split:Literal['train','test']=None, 
-                                  width=800, height=600, **kwargs):
+                                  show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, 
+                                  split:list|Literal['train','test','oot']=['train','test','oot'], width=800, height=600, **kwargs):
         
         if (df is not None):
             dff = df.copy(deep=True)
         else:
             dff = self.df.copy(deep=True)
 
-        if (split is not None):
-            if split.lower() == 'train':
-                dff = dff[dff['split'] == 'train']
-            elif split.lower() == 'test':
-                dff = dff[dff['split'] == 'test']
-            else:
-                raise ValueError("Invalid split value. Use 'train' or 'test'.")
+        if isinstance(split, str):
+            split = [split]
+        try:
+            dff = dff[dff['split'].isin(split)]
+        except:
+            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
             
         if (sample is not None):
             sample = np.abs(sample)
@@ -423,4 +433,43 @@ class Rating():
                 marker=dict(color=df['colors']), name=str(rating),
                 text=df['total'], showlegend=False
             ))
+        return fig
+    
+
+    def plot_rating_infos(self, split:list|Literal['train','test','oot']=['train','test','oot'], width=1400, height=1000):
+        if isinstance(split, str):
+            split = [split]
+        try:
+            dff = self.df[self.df['split'].isin(split)].copy(deep=True)
+        except:
+            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
+        
+        fig_gains = self.plot_gains_per_risk_group(split=split)['data']
+        fig_stab = self.plot_stability_in_time(split=split)['data']
+        fig_stab_ = self.plot_stability_in_time(split=split, agg_func='count', percent=False, stackgroup=True)['data']
+        fig_ks = KS_Discriminant(dff, target=self.target, features='rating').plot()['data']
+
+        fig = plotly.subplots.make_subplots(
+            rows=2, cols=2,
+            subplot_titles=(
+                'Gains por Risk Group', 
+                'Kolmogorov-Smirnov Discriminant',
+                f'Stability in Time | Metric',
+                'Stability in Time | Volumetry',
+            ),
+            vertical_spacing=0.1,
+            horizontal_spacing=0.05,
+            y_title='percent [%] | volume [*]', 
+        )
+        for fig_ in fig_gains:
+            fig.add_trace(fig_, row=1, col=1)
+        for fig_ in fig_ks:
+            fig.add_trace(fig_, row=1, col=2)
+        for fig_ in fig_stab:
+            fig.add_trace(fig_, row=2, col=1)
+        for fig_ in fig_stab_:
+            fig.add_trace(fig_, row=2, col=2)
+
+        plotly_main_subplot_layout(fig, title=f'Basic Rating Evaluation | {self.target}', width=width, height=height)
+
         return fig
