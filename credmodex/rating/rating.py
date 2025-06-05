@@ -30,6 +30,12 @@ class Rating():
             features = [features]
         if (features is None):
             features = df.columns.to_list()
+        features = [f for f in features 
+                    if f in df.columns 
+                    and f != target 
+                    and f != time_col
+                    and f != 'id']
+        
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if (model is None):
@@ -41,6 +47,7 @@ class Rating():
         self.optb_type = optb_type
         self.name = name
 
+        self.id = 'id'
         self.time_col = time_col
         self.features = features
         self.target = target
@@ -72,7 +79,7 @@ class Rating():
             self.train = self.df[self.df['split'] == 'train']
             self.test = self.df[self.df['split'] == 'test']
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col]]
+            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col, 'id']]
             self.features = transformed_features
 
             self.X_train = self.df[self.df['split'] == 'train'][self.features]
@@ -88,7 +95,7 @@ class Rating():
             self.train = self.df
             self.test = self.df
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col]]
+            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col, 'id']]
             self.features = transformed_features
 
             self.X_train = self.df[self.features]

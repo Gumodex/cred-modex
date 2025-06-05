@@ -16,7 +16,7 @@ class TreatentFunc():
     def __init__(self, df:pd.DataFrame=None, target:str=None):
         self.df = df.copy(deep=True) 
         self.target = target
-        self.forbidden_cols = ['split', self.target, 'score', 'rating']
+        self.forbidden_cols = ['split', self.target, 'score', 'rating', 'id']
         self.bins_map = {}
 
 

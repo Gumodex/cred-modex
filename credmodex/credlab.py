@@ -35,15 +35,23 @@ class CredLab:
         if (not isinstance(target, str)) or (not isinstance(features, list)):
             raise ValueError("target must be a string and features must be a list of strings")
         # The self.df contains only the columns target + features
-        features = [f for f in features if f in df.columns and f != target and f != time_column]
+        features = [f for f in features 
+                    if f in df.columns 
+                    and f != target 
+                    and f != time_column
+                    and f != 'id']
+        
+        if ('id' not in df.columns):
+            df['id'] = range(len(df))
 
         if time_column:
-            self.df = df[features + [target] + [time_column]].copy(deep=True) if features and target else None
+            self.df = df[features + [target] + [time_column] + ['id']].copy(deep=True) if features and target else None
         else:
-            self.df = df[features + [target]].copy(deep=True) if features and target else None
+            self.df = df[features + [target] + ['id']].copy(deep=True) if features and target else None
         if (self.df is None):
             raise ValueError("Both target and [features] must be provided.")
         
+        self.id = 'id'
         self.target = target
         self.features = features
         self.seed = seed
@@ -118,8 +126,8 @@ class CredLab:
 
 
     def plot_train_test_split(self, graph_lib:str='plotly', freq='%Y-%m', width:int=900, height:int=450):
-        self.df.loc[:, 'id'] = 1
-        self.grouped = self.df.groupby([pd.to_datetime(self.df[self.time_column]).dt.strftime(f'{freq}'),'split']).agg({'id': 'count'}).reset_index()
+        self.df.loc[:, 'id_'] = 1
+        self.grouped = self.df.groupby([pd.to_datetime(self.df[self.time_column]).dt.strftime(f'{freq}'),'split']).agg({'id_': 'count'}).reset_index()
         train = self.grouped[self.grouped['split'] == 'train']
         test = self.grouped[self.grouped['split'] == 'test']
         oot = self.grouped[self.grouped['split'] == 'oot']
@@ -128,23 +136,24 @@ class CredLab:
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 x=train[self.time_column],
-                y=train['id'],
+                y=train['id_'],
                 name='Train', marker=dict(color='#292929')
             ))
             fig.add_trace(go.Bar(
                 x=test[self.time_column],
-                y=test['id'],
+                y=test['id_'],
                 name='Test', marker=dict(color='#704cae')
             ))
             fig.add_trace(go.Bar(
                 x=oot[self.time_column],
-                y=oot['id'],
+                y=oot['id_'],
                 name='OoT', marker=dict(color='#8edb29')
             ))
             from credmodex.utils.design import plotly_main_layout
             plotly_main_layout(fig, title='Train-Test Split', x='Time', y='Count', 
                 height=height, width=width, barmode='stack'
             )
+            del self.df['id_']
             return fig
         elif graph_lib == 'matplotlib':
             raise NotImplementedError("Matplotlib plotting is not implemented yet.")

@@ -24,18 +24,27 @@ class BaseModel:
     Base class for all models with advanced splitting functionality.
     """
 
-    def __init__(self, model:type=None, treatment:type=None, df:pd.DataFrame=None, seed:int=42, doc:str=None,
+    def __init__(self, model:type=None, treatment:type=None, df:pd.DataFrame=None, seed:int=42, id:str='id', doc:str=None,
                  features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None, n_features:int=None):
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
+            
         if (model is None):
             model = LogisticRegression(max_iter=10000, solver='saga')
+
         if (treatment is None):
             treatment = lambda df: df
+
         if isinstance(features,str):
             self.features = [features]
         else:
             self.features = features
+        self.features = [f for f in features 
+                         if f in df.columns 
+                         and f != target 
+                         and f != time_col
+                         and f != 'id']
+
         if (n_features is None):
             self.n_features = len(self.features)
         else:
@@ -48,6 +57,7 @@ class BaseModel:
         self.treatment = treatment
         self.df = df.copy(deep=True)
         self.doc = doc
+        self.id = 'id'
         self.target = target
         self.time_col = time_col
         self.name = name
