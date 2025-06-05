@@ -293,7 +293,7 @@ class CredLab:
             print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
 
 
-    def eval_best_model(self, sort:str=None, split:Literal['train','test']=None):
+    def eval_best_model(self, sort:str=None, split:Literal['train','test','oot']=None):
         metrics_dict = {}
 
         for model_name, model in self.models.items():
@@ -363,7 +363,7 @@ class CredLab:
         return dff
 
 
-    def eval_best_rating(self, sort:str=None, split:Literal['train','test']=None):
+    def eval_best_rating(self, sort:str=None, split:Literal['train','test','oot']=None):
         dff = pd.DataFrame()
         for model_name, model in self.models.items():
             try: 

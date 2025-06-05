@@ -29,7 +29,7 @@ class BaseBinning(ABC):
         if (n_bins is not None):
             self.min_n_bins = self.n_bins
             self.max_n_bins = self.n_bins
-            self.solver = 'n_bins'
+            self.solver = 'calinski-harabasz'
         
         self.model = None
 
@@ -37,9 +37,11 @@ class BaseBinning(ABC):
     def fit(self, x:list, y:list=None):
         if (self.solver == 'calinski-harabasz'):
             return self._fit_ch(x, y)
+        if (self.solver == 'n_bins'):
+            return self._fit(x, y, n_bins=self.n_bins)
         else:
             try: 
-                return self._fit(x, y, n_bins=self.n_bins)
+                return 
             except:
                 raise ValueError('You must specify a ``n_bins`` or a solver!')
 
