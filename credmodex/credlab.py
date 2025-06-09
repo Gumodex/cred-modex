@@ -419,7 +419,16 @@ class CredLab:
         pdf.output(f"{pdf_name}.pdf")
 
 
+    def get_rating_df(self):
+        df_ = pd.DataFrame(self.df[['id', 'over', 'data', 'split']])
+        for model_name, model in self.models.items():
+            for rating_name, rating in model.ratings.items():
+                df_ = df_.merge(
+                    rating.df[['id','rating']].rename(columns={'rating': f'{model_name}.{rating_name}'}), 
+                    on='id', how='inner'
+                )
 
+        self.rating_df = df_
 
 
 
