@@ -3,8 +3,9 @@ import numpy as np
 from typing import Literal
 
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-from .design import plotly_main_layout
+from .design import plotly_main_layout, plotly_main_subplot_layout
 
 
 
@@ -147,3 +148,46 @@ def plot_migration_analysis(df:pd.DataFrame=None, index:str='rating', column:str
     if show_fig: return fig
     else: return migration_dff
 
+
+
+
+def subplot_migration_analysis(df:pd.DataFrame=None, index:str='rating', column:str='rating', target:str=None, 
+                               agg_func:list[str]=['mean','count'], z_normalizer:list[int]=[None,None], z_format:list[str]=['percent','int'], 
+                               replace_0_None:list[bool]=[False,False], time_col:str=None, initial_date:str=None, 
+                               upto_date:str=None, sample:float=None, width=1400, height=600, colorscale:list[str]=['amp','algae'],
+                               split:list|Literal['train','test','oot']=['train','test','oot']):
+
+    if (df is not None):
+        dff = df.copy(deep=True)
+    else:
+        raise ValueError(f"No dataframe defined!")
+
+    if (target is None):
+        raise ValueError(f"No target defined")
+
+    fig = make_subplots(rows=1, cols=2, subplot_titles=agg_func)
+
+    trace = plot_migration_analysis(
+        df=df, target=target, split=split, time_col=time_col, initial_date=initial_date, upto_date=upto_date,
+        z_normalizer=z_normalizer[0], z_format=z_format[0], replace_0_None=replace_0_None[0], sample=sample,
+        column=column, index=index, agg_func=agg_func[0], colorscale=colorscale[0]
+    )['data']
+    for t in trace:
+        t.colorbar = dict(x=0.45)
+        fig.add_trace(t, row=1, col=1)
+
+    trace = plot_migration_analysis(
+        df=df, target=target, split=split, time_col=time_col, initial_date=initial_date, upto_date=upto_date,
+        z_normalizer=z_normalizer[1], z_format=z_format[1], replace_0_None=replace_0_None[1], sample=sample,
+        column=column, index=index, agg_func=agg_func[1], colorscale=colorscale[1]
+    )['data']
+    for t in trace:
+        t.colorbar = dict(x=1)
+        fig.add_trace(t, row=1, col=2)
+
+    plotly_main_subplot_layout(fig, 
+        title=f'Migration Analysis | (metric: {target})',
+        x=column, y=index, width=width, height=height
+    )
+
+    return fig

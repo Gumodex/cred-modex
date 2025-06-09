@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 
-def plotly_main_layout(fig: go.Figure, width=700, height=600, x=None, y=None, title=None,
+def plotly_main_layout(fig: go.Figure, width=700, height=600, x='x', y='y', title=None,
                        x_range=None, y_range=None, paper_color='white', 
                        customdata: Union[str, None] = None, hover_customdata='Info', 
                        hover_x='x', hover_y='y', **kwargs) -> go.Figure:
@@ -96,7 +96,7 @@ def plotly_main_subplot_layout(fig:go.Figure, width=1400, height=500, title=None
 
 
 
-def matplotlib_main_layout(fig, ax, width=7, height=6, x=None, y=None, title=None,
+def matplotlib_main_layout(fig, ax, width=7, height=6, x='x', y='y', title=None,
                            x_range=None, y_range=None, paper_color='white', **kwargs):
     # Set figure size
     fig.set_size_inches(width / 100, height / 100)

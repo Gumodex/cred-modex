@@ -5,6 +5,7 @@ from .design import (
 )
 from .plots import (
     plot_migration_analysis,
+    subplot_migration_analysis,
 )
 from .pdf_report import (
     PDF_Report,
@@ -17,6 +18,7 @@ __all__ = [
     'matplotlib_main_layout',
     
     'plot_migration_analysis',
+    'subplot_migration_analysis',
 
     'PDF_Report',
 ]
