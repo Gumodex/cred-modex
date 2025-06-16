@@ -146,6 +146,49 @@ class Rating():
             return
         raise ValueError(f"Unknown optb_type: {self.optb_type}")
     
+
+
+    def predict(self, df_):
+        
+        if ('score' not in df_.columns):
+            if not getattr(self, 'suppress_warnings', False):
+                warnings.warn(
+                    '``score`` must be provided in df.columns',
+                    category=UserWarning
+                )
+
+        if callable(self.model):
+            df_ = self.model(df_)
+            return
+
+        optb_type = self.optb_type.lower().strip() if isinstance(self.optb_type, str) else None
+
+        if optb_type and ('trans' in optb_type):
+            if not hasattr(self.model, 'transform'):
+                raise AttributeError("Model has no `transform` method.")
+
+            try: transformed = self.model.transform(df_['score'], metric='bins')
+            except TypeError: transformed = self.model.transform(df_['score'])
+
+            df_['rating'] = transformed
+
+            try:
+                bin_table = self.model.binning_table.build()
+                bins = list(bin_table['Bin'].unique())
+            except Exception as e:
+                bins = df_.groupby('rating')[self.target].mean().sort_values(ascending=True)
+                bins = list(bins.index)
+
+            bin_map = Rating.map_to_alphabet_(bins)
+            self.bins = bin_map
+            df_['rating'] = df_['rating'].map(bin_map)
+            return df_
+
+        if optb_type is None:
+            return df_
+        raise ValueError(f"Unknown optb_type: {self.optb_type}")
+    
+
         
     @staticmethod
     def map_to_alphabet_(bin_list):

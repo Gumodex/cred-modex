@@ -153,6 +153,40 @@ class BaseModel:
             raise SystemError('No ``predict_type`` available')
     
 
+    def predict(self, df_):
+        df_ = self.treatment(df_).copy(deep=True)
+        predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else None
+
+        if ('func' in predict_type) or callable(self.model):
+            df_ = self.model(df_).copy(deep=True)
+            return df_
+
+        if predict_type and ('prob' in predict_type):
+            if hasattr(self.model, 'predict_proba'):
+                df_['score'] = self.model.predict_proba(df_[self.features])[:,0]
+                df_['score'] = df_['score'].apply(lambda x: round(x,6))
+                return df_
+            elif hasattr(self.model, 'decision_function'):
+                scores = self.model.decision_function(df_[self.features])
+                df_['score'] = scores
+                df_['score'] = df_['score'].round(6)
+                return df_
+            else:
+                raise AttributeError("Model doesn't support probability prediction.")
+        
+        if (predict_type is None) or ('raw' in predict_type):
+            if hasattr(self.model, 'predict'):
+                preds = self.model.predict(df_[self.features])
+                df_['score'] = preds
+                df_['score'] = df_['score'].round(6)
+                return df_
+            else:
+                raise AttributeError("Model doesn't support raw predictions.")
+
+        else:
+            raise SystemError('No ``predict_type`` available')
+    
+
     def add_rating(self, model:type=None, doc:str=None, type='score', optb_type:str='transform', name:str=None,
                    time_col:str=None):
         if (name is None):
