@@ -145,7 +145,10 @@ class TreatentFunc():
     
 
     def exclude_columns(self, col:list|str=None):
-        col = self._check_col(col)
+        if isinstance(col, str):
+            col = [col]
+        col = list(col)
+        
         for c in col:
             if c in self.df.columns:
                 del self.df[c]
