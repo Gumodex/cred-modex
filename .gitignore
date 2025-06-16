@@ -1,9 +1,11 @@
-# Update.txt
+# Private testing
 update.txt
 Desfiante Enel.ipynb
-enel_sp.csv
-enel_rj.csv
-enel_ce.csv
+
+# Data files
+*.parquet
+*.csv
+*.pdf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
