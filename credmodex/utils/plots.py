@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Literal
+import warnings
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -73,7 +74,7 @@ def plot_migration_analysis(df:pd.DataFrame=None, index:str='rating', column:str
     try:
         dff = dff[dff['split'].isin(split)]
     except:
-        raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
+        warnings.warn("No split column found with 'train', 'test', or 'oot' elements.")
         
     if (sample is not None):
         sample = np.abs(sample)
