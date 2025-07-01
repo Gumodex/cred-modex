@@ -1,8 +1,6 @@
 from fpdf import FPDF
 import plotly.io as pio
 import tempfile
-import os
-from tabulate import tabulate
 import math
 
 __all__ = [

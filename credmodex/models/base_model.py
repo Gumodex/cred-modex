@@ -5,10 +5,7 @@ from typing import Union, Literal
 import warnings
 import os
 from pprint import pprint, pformat
-from tabulate import tabulate
 
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 import plotly.subplots
 
 from sklearn.linear_model import LogisticRegression
