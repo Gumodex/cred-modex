@@ -7,9 +7,6 @@ from .plots import (
     plot_migration_analysis,
     subplot_migration_analysis,
 )
-from .pdf_report import (
-    PDF_Report,
-)
 
 
 __all__ = [
@@ -19,6 +16,4 @@ __all__ = [
     
     'plot_migration_analysis',
     'subplot_migration_analysis',
-
-    'PDF_Report',
 ]

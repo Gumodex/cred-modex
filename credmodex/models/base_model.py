@@ -205,7 +205,6 @@ class BaseModel:
         self.rating = rating
         
         return model
-    
 
     def eval_goodness_of_fit(self, method:Union[str,type]='gini', rating:Union[type]=None,
                              comparison_cols:list[str]=[]):
@@ -247,9 +246,14 @@ class BaseModel:
 
 
     def model_relatory_pdf(self, rating:Union[type]=None, add_rating:bool=True,
-                           comparison_cols:list[str]=[], pdf:PDF_Report=None, save_pdf:bool=True):
+                           comparison_cols:list[str]=[], pdf=None, save_pdf:bool=True):
+        try:
+            from credmodex.utils import pdf_report
+        except ImportError as e:
+            raise ImportError("PDF generation requires `fpdf`. Please install it with `pip install fpdf`.") from e
+        
         if (pdf is None):
-            pdf = PDF_Report()
+            pdf = pdf_report.PDF_Report()
         else: ...
 
         pdf.add_page()

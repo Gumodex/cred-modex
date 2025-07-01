@@ -394,8 +394,12 @@ class CredLab:
     def models_relatory_pdf(self, comparison_cols:list[str]=[], pdf_name='project_report'):
         if (len(self.models.items()) < 1):
             raise TypeError('There are no Models available! Please, add a Model with ``.add_model()``')
-
-        pdf = PDF_Report()
+        
+        try:
+            from credmodex.utils import pdf_report
+        except ImportError as e:
+            raise ImportError("PDF generation requires `fpdf`. Please install it with `pip install fpdf`.") from e
+        pdf = pdf_report.PDF_Report()
 
         pdf.add_chapter_model_page(text=f'{pdf.reference_name_page}')
         pdf.add_page()
