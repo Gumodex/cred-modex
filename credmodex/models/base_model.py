@@ -22,7 +22,8 @@ class BaseModel:
     """
 
     def __init__(self, model:type=None, treatment:type=None, df:pd.DataFrame=None, seed:int=42, id:str='id', doc:str=None,
-                 features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None, n_features:int=None):
+                 features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None, n_features:int=None,
+                 surpress_warnings:bool=False):
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
             
@@ -59,6 +60,7 @@ class BaseModel:
         self.time_col = time_col
         self.name = name
         self.predict_type = predict_type
+        self.surpress_warnings = surpress_warnings
 
         self.ratings = {}
 
@@ -193,7 +195,7 @@ class BaseModel:
         
         rating = Rating(
             model=model, df=self.df, type=type, features=['score'], target=self.target, 
-            optb_type=optb_type, doc=doc, time_col=time_col, name=name
+            optb_type=optb_type, doc=doc, time_col=time_col, name=name, suppress_warnings=self.surpress_warnings
             )
         self.ratings[name] = rating
         setattr(self, name, rating)
