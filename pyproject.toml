@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "credmodex"
-version = "0.2.2"
+version = "0.2.3"
 description = "A Python library for credit risk modeling"
 readme = "README.md"
 license = "MIT"
