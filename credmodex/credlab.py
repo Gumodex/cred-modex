@@ -24,7 +24,7 @@ __all__ = [
 
 class CredLab:
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:Union[list[str],str]=None, time_column:str=None,
-                 test_size:float=0.1, out_of_time:float|str=0.2, seed:int=42):
+                 test_size:float=0.1, out_of_time:float|str=0.2, seed:int=42, surpress_warnings:bool=False):
 
         if isinstance(features,str):
             features = [features]
@@ -54,6 +54,7 @@ class CredLab:
         self.id = 'id'
         self.target = target
         self.features = features
+        self.surpress_warnings = surpress_warnings
         self.seed = seed
         np.random.seed(self.seed)
 
@@ -170,7 +171,7 @@ class CredLab:
         base_model = BaseModel(
             model=model, treatment=treatment, df=self.df, doc=doc, seed=seed,
             features=self.features, target=self.target, predict_type='prob', time_col=time_col,
-            name=name
+            name=name, surpress_warnings=self.surpress_warnings
             )
         self.models[name] = base_model
         setattr(self, name, base_model)

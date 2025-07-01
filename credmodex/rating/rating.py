@@ -109,7 +109,7 @@ class Rating():
         if ('score' not in self.df.columns):
             if not getattr(self, 'suppress_warnings', False):
                 warnings.warn(
-                    '``score`` must be provided in df.columns',
+                    '``score`` must be provided in df.columns to perform fit_predict_score\nIf rating is already a column, you can input ``model=lambda df: df``',
                     category=UserWarning
                 )
 
@@ -153,7 +153,7 @@ class Rating():
         if ('score' not in df_.columns):
             if not getattr(self, 'suppress_warnings', False):
                 warnings.warn(
-                    '``score`` must be provided in df.columns',
+                    '``score`` must be provided in df.columns to predict something',
                     category=UserWarning
                 )
 
@@ -213,7 +213,12 @@ class Rating():
         try:
             dff = dff[dff['split'].isin(split)]
         except:
-            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
+            if ('split' not in dff.columns) and (not getattr(self, 'suppress_warnings', False)):
+                warnings.warn(
+                    'No column ["split"] was found, therefore, the whole `df` will be used in this method',
+                    category=UserWarning
+                )
+            dff = dff.copy(deep=True)
             
         if (sample is not None):
             sample = np.abs(sample)
@@ -337,7 +342,12 @@ class Rating():
         try:
             dff = dff[dff['split'].isin(split)]
         except:
-            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
+            if ('split' not in dff.columns) and (not getattr(self, 'suppress_warnings', False)):
+                warnings.warn(
+                    'No column ["split"] was found, therefore, the whole `df` will be used in this method',
+                    category=UserWarning
+                )
+            dff = dff.copy(deep=True)
             
         if (sample is not None):
             sample = np.abs(sample)
@@ -422,7 +432,12 @@ class Rating():
         try:
             dff = dff[dff['split'].isin(split)]
         except:
-            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
+            if ('split' not in dff.columns) and (not getattr(self, 'suppress_warnings', False)):
+                warnings.warn(
+                    'No column ["split"] was found, therefore, the whole `df` will be used in this method',
+                    category=UserWarning
+                )
+            dff = dff.copy(deep=True)
             
         if (sample is not None):
             sample = np.abs(sample)
@@ -492,7 +507,12 @@ class Rating():
         try:
             dff = self.df[self.df['split'].isin(split)].copy(deep=True)
         except:
-            raise ValueError("Invalid split value. Use 'train', 'test' or 'oot'.")
+            if ('split' not in self.df.columns) and (not getattr(self, 'suppress_warnings', False)):
+                warnings.warn(
+                    'No column ["split"] was found, therefore, the whole `df` will be used in this method',
+                    category=UserWarning
+                )
+            dff = self.df.copy(deep=True)
         
         fig_gains = self.plot_gains_per_risk_group(split=split)['data']
         fig_stab = self.plot_stability_in_time(split=split)['data']
