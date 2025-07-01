@@ -23,7 +23,7 @@ __all__ = [
 
 
 class Rating():
-    def __init__(self, model:type=None, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, time_col:str=None, 
+    def __init__(self, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, time_col:str=None, model:type=CH_Binning(max_n_bins=15), 
                  type:str='score', optb_type:str='transform', doc:str=None, suppress_warnings:bool=False, name:str=None):
         
         if isinstance(features,str):
@@ -39,6 +39,8 @@ class Rating():
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
         if (model is None):
+            model = lambda df: df  # Default model that does nothing
+        if model == 'CH_Binning':
             model = CH_Binning(max_n_bins=15)
 
         self.model = model
@@ -109,7 +111,7 @@ class Rating():
         if ('score' not in self.df.columns):
             if not getattr(self, 'suppress_warnings', False):
                 warnings.warn(
-                    '``score`` must be provided in df.columns to perform fit_predict_score\nIf rating is already a column, you can input ``model=lambda df: df``',
+                    '``score`` must be provided in df.columns to perform fit_predict_score\nCurrently, no fitting is being made!\nUse ``model = None`` only if ["rating"] column already exists',
                     category=UserWarning
                 )
 
@@ -153,7 +155,7 @@ class Rating():
         if ('score' not in df_.columns):
             if not getattr(self, 'suppress_warnings', False):
                 warnings.warn(
-                    '``score`` must be provided in df.columns to predict something',
+                    '["score"] must be provided in df.columns to predict something',
                     category=UserWarning
                 )
 

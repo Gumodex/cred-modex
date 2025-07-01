@@ -21,13 +21,15 @@ class BaseModel:
     Base class for all models with advanced splitting functionality.
     """
 
-    def __init__(self, model:type=None, treatment:type=None, df:pd.DataFrame=None, seed:int=42, id:str='id', doc:str=None,
+    def __init__(self, model:type=LogisticRegression(max_iter=10000, solver='saga'), treatment:type=None, df:pd.DataFrame=None, seed:int=42, id:str='id', doc:str=None,
                  features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None, n_features:int=None,
-                 surpress_warnings:bool=False):
+                 suppress_warnings:bool=False):
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
             
         if (model is None):
+            model = lambda df: df
+        if (model == 'LogisticRegression'):
             model = LogisticRegression(max_iter=10000, solver='saga')
 
         if (treatment is None):
@@ -60,7 +62,7 @@ class BaseModel:
         self.time_col = time_col
         self.name = name
         self.predict_type = predict_type
-        self.surpress_warnings = surpress_warnings
+        self.suppress_warnings = suppress_warnings
 
         self.ratings = {}
 
@@ -118,7 +120,7 @@ class BaseModel:
     def fit_predict(self):
         self.df = self.treatment(self.df).copy(deep=True)
         self.train_test_()
-        predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else None
+        predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else ''
 
         if ('func' in predict_type) or callable(self.model):
             self.df = self.model(self.df).copy(deep=True)
@@ -186,7 +188,7 @@ class BaseModel:
             raise SystemError('No ``predict_type`` available')
     
 
-    def add_rating(self, model:type=None, doc:str=None, type='score', optb_type:str='transform', name:str=None,
+    def add_rating(self, model:type='CH_Binning', doc:str=None, type='score', optb_type:str='transform', name:str=None,
                    time_col:str=None):
         if (name is None):
             name = f'{model.__class__.__name__}_{len(self.ratings)+1}'
@@ -195,7 +197,7 @@ class BaseModel:
         
         rating = Rating(
             model=model, df=self.df, type=type, features=['score'], target=self.target, 
-            optb_type=optb_type, doc=doc, time_col=time_col, name=name, suppress_warnings=self.surpress_warnings
+            optb_type=optb_type, doc=doc, time_col=time_col, name=name, suppress_warnings=self.suppress_warnings
             )
         self.ratings[name] = rating
         setattr(self, name, rating)
