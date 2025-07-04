@@ -1,5 +1,5 @@
-from .treatment_func import TreatentFunc
+from .treatment_func import TreatmentFunc
 
 __all__ = [
-    'TreatentFunc'
+    'TreatmentFunc'
 ]

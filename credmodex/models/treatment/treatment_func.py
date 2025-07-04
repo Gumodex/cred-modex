@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-class TreatentFunc():
+class TreatmentFunc():
     def __init__(self, df:pd.DataFrame=None, target:str=None):
         self.df = df.copy(deep=True) 
         self.target = target

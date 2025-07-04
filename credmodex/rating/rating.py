@@ -149,7 +149,6 @@ class Rating():
         raise ValueError(f"Unknown optb_type: {self.optb_type}")
     
 
-
     def predict(self, df_):
         
         if ('score' not in df_.columns):
@@ -161,7 +160,7 @@ class Rating():
 
         if callable(self.model):
             df_ = self.model(df_)
-            return
+            return df_
 
         optb_type = self.optb_type.lower().strip() if isinstance(self.optb_type, str) else None
 

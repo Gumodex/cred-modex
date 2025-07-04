@@ -1,5 +1,5 @@
 from .base_model import BaseModel
-from .treatment import TreatentFunc
+from .treatment import TreatmentFunc
 
 from .parametric_models import (
     Logistic,
@@ -30,7 +30,7 @@ from .probability_models import (
 
 __all__ = [
     'BaseModel',
-    'TreatentFunc',
+    'TreatmentFunc',
     
     'Logistic',
     'Probit',
