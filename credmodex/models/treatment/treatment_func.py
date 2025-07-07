@@ -177,7 +177,7 @@ class TreatmentFunc:
             cols_checked = _check_str_cols(df, cols)
 
             if fit:
-                bins = credmodex.rating.CH_Binning(
+                bins = CH_Binning(
                     min_n_bins=min_n_bins, max_n_bins=max_n_bins,
                     dtype='categorical'
                 )
@@ -201,7 +201,7 @@ class TreatmentFunc:
             cols_checked = _check_str_cols(df, cols)
 
             if fit:
-                binning = credmodex.rating.CH_Binning(
+                binning = CH_Binning(
                     min_n_bins=min_n_bins, max_n_bins=max_n_bins,
                     dtype='categorical', transform_func='sequence'
                 )
@@ -221,7 +221,7 @@ class TreatmentFunc:
             cols_checked = _check_str_cols(df, cols)
 
             if fit:
-                binning = credmodex.rating.CH_Binning(
+                binning = CH_Binning(
                     min_n_bins=min_n_bins, max_n_bins=max_n_bins,
                     dtype='categorical', transform_func='normalize'
                 )
