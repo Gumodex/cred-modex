@@ -68,16 +68,20 @@ class CH_Binning():
 
     def transform(self, x:list, metric:str='bins'):
         if (self.dtype == 'numerical'):
-            pred_ = self.model.transform(x, metric=metric)
+            return self.model.transform(x, metric=metric)
+        
         if (self.dtype == 'categorical'):
             pred_ = self.model.transform(x, metric=metric)
+            
+            # Do NOT modify bins_map again — reuse the one from fit
             if (self.transform_func == 'alphabet'):
-                pred_ = self._convert_categorical(bins=self.bins_map, list_=pred_)
+                return [self.bins_map.get(label, np.nan) for label in pred_]
             elif (self.transform_func == 'sequence'):
-                pred_ = self._convert_categorical_to_numerical(bins=self.bins_map, list_=pred_)
+                return [self.bins_map.get(label, np.nan) for label in pred_]
             elif (self.transform_func == 'normalize'):
-                pred_ = self._convert_categorical_to_normal(bins=self.bins_map, list_=pred_)
-        return pred_
+                return [self.bins_map.get(label, np.nan) for label in pred_]
+        
+        raise TypeError('Unsupported dtype or transform_func')
 
 
     def _copy_model_attributes(self):
@@ -125,12 +129,13 @@ class CH_Binning():
             bins[key] = round(abs((value - _max) / (_min - _max)),6)
 
         self.bins_map = bins
-        return [bins[label] for label in list_]
+        default_val = np.nan  # or np.nan, or 0.0 depending on your needs
+        return [bins.get(label, default_val) for label in list_]
     
 
     def __str__(self):
         if ('Missing' in self.bins_map.keys()):
-            self.n_bins_ += 1
+            return f"<CH_Binning: {self.n_bins_+1} bins={self.bins_map}>"
         return f"<CH_Binning: {self.n_bins_} bins={self.bins_map}>"
     
 

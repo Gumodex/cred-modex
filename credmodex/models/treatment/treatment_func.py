@@ -76,32 +76,32 @@ class TreatmentFunc:
         }
 
 
-    def fit(self, strategy:Dict[Union[str, Tuple[str, ...]], Union[str, Callable, List[Union[str, Callable]]]]):
+    def fit(self, strategy):
+        df = self.df.copy(deep=True)  # Use this as a working df to carry forward changes
+        self.fitted_columns = df.columns.tolist()
+        self.strategy = strategy
+
         for cols, funcs in strategy.items():
             if isinstance(cols, str):
                 cols = (cols,)
-
             if not isinstance(funcs, (list, tuple)):
                 funcs = [funcs]
 
             for col in cols:
                 for func in funcs:
-                    # Handle string case
                     if isinstance(func, str):
                         if func not in self.methods:
                             raise ValueError(f"Method '{func}' not found in available methods: {list(self.methods.keys())}")
                         method = self.methods[func]
-                        method_name = func
+                        method_func = method()
                     else:
-                        # If it's a partial or a direct function, derive name
-                        method = func
-                        method_name = func.func.__name__ if isinstance(func, partial) else func.__name__
+                        method_func = func
 
-                    fitted_info = method(df=self.df, cols=col, target=self.target, fit=True)
-                    if col not in self.pipeline:
-                        self.pipeline[col] = []
+                    fitted_info = method_func(df=df, cols=col, target=self.target, fit=True)
+                    self.pipeline.setdefault(col, []).append((method_func, fitted_info))
 
-                    self.pipeline[col].append((method_name, fitted_info))
+                    # Apply transform immediately after fit to update df
+                    df = method_func(df=df, cols=col, target=self.target, fit=False, fitted_info=fitted_info)
 
 
     def transform(self, df:pd.DataFrame=None):
@@ -126,209 +126,194 @@ class TreatmentFunc:
                 warnings.warn(f"Column type mismatches found: {type_mismatches}")
 
         for col, steps in self.pipeline.items():
-            for method_name, fitted_info in steps:
-                if isinstance(method_name, str):
-                    method = self.methods.get(method_name)
-                else:
-                    method = method_name  # If it's a callable
-
-                df = method(df=df, cols=col, target=self.target, fit=False, fitted_info=fitted_info)
+            for method_func, fitted_info in steps:
+                df = method_func(df=df, cols=col, target=self.target, fit=False, fitted_info=fitted_info)
 
         return df
     
 
-    @staticmethod
-    def fillna(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None, value=0):
-        cols = _check_cols(df, cols)
-        if (fit == True):
-            return {'fillna': value}
-        else:
-            for col in cols:
-                df[col] = df[col].fillna(fitted_info['fillna'])
-            return df
+    def fillna(self, value=0):
+        def _fillna(df, cols, target, fit=True, fitted_info=None):
+            cols = _check_cols(df, cols)
+            if fit:
+                return value
+            else:
+                for col in cols:
+                    df[col] = df[col].fillna(fitted_info)
+                return df
+        _fillna.__method_name__ = 'fillna'
+        return _fillna
 
 
-    @staticmethod
-    def exclude_columns(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None):
-        cols = _check_cols(df, cols)
-        if (fit == True):
-            return {'exclude': cols}
-        else:
-            for col in fitted_info['exclude']:
-                if col in df.columns:
-                    del df[col]
-            return df
-    
-
-    @staticmethod
-    def include_columns(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None):
-        cols = _check_cols(df, cols)
-        if (fit == True):
-            return {'include': cols}
-        else:
-            df = df.loc[:, df.columns.isin(fitted_info['include'] + TreatmentFunc().forbidden_cols)]
-        return df
+    def exclude_columns(self):
+        def _exclude_columns(df, cols, target, fit=True, fitted_info=None):
+            cols_checked = _check_cols(df, cols)
+            if fit:
+                return cols_checked
+            else:
+                for col in fitted_info:
+                    if col in df.columns:
+                        del df[col]
+                return df
+        _exclude_columns.__method_name__ = 'exclude_columns'
+        return _exclude_columns
 
 
-    @staticmethod
-    def _bin_str_columns(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None,
-                         min_n_bins:int=2, max_n_bins:int=10):
-        if (len(cols) > 1):
-            raise(f'This is an internal method and holds only for one column, not f"{cols}"')
-        
-        if (fit == True):
+    def include_columns(self):
+        def _include_columns(df, cols, target, fit=True, fitted_info=None):
+            cols_checked = _check_cols(df, cols)
+            if fit:
+                return cols_checked
+            else:
+                df = df.loc[:, df.columns.isin(fitted_info + TreatmentFunc().forbidden_cols)]
+                return df
+        _include_columns.__method_name__ = 'include_columns'
+        return _include_columns
+
+
+    def dummy_bin_str(self, min_n_bins=2, max_n_bins=10):
+        def _dummy_bin_str(df, cols, target, fit=True, fitted_info=None):
             df = df.copy(deep=True)
+            cols_checked = _check_str_cols(df, cols)
 
-            if (target is None):
-                raise ValueError("You must specify a target.")
-
-            bins = CH_Binning(
-                min_n_bins=min_n_bins, max_n_bins=max_n_bins,
-                dtype='categorical'
-            )
-            df[cols[0]] = bins.fit(x=df[cols[0]], y=df[target])
-            bins = bins.bins_map
-
-            return bins
-        else:
-            ...
-
-
-    @staticmethod
-    def dummy_bin_str(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None,
-                      min_n_bins:int=2, max_n_bins:int=10):
-        df = df.copy(deep=True)
-        cols = _check_str_cols(df, cols)
-
-        if (fit == True):
-            fitted_info = TreatmentFunc._bin_str_columns(
-                    df=df, cols=cols, target=target, fit=True,
-                    min_n_bins=min_n_bins, max_n_bins=max_n_bins
+            if fit:
+                bins = credmodex.rating.CH_Binning(
+                    min_n_bins=min_n_bins, max_n_bins=max_n_bins,
+                    dtype='categorical'
                 )
-
-            return fitted_info
-
-        else:
-            for col in cols:
-                df[col] = df[col].fillna('NaN')
-                categories = list(fitted_info.keys())  # Fallback: unique category groups
-
-                # Extract flat list of categories (from bin groups like "['a']", "['b', 'e']"...)
-                flat_cats = []
-                for group in categories:
-                    cats = eval(group)  # CAUTION: group is like "['a', 'b']" (string)
-                    flat_cats.extend(cats)
-
-                flat_cats = list(set(flat_cats))
-                for cat in flat_cats:
-                    df[f"{col}_{cat}"] = (df[col] == cat).astype(int)
-
-                df.drop(columns=col, inplace=True)
-
-            return df
+                df[cols_checked[0]] = bins.fit(x=df[cols_checked[0]], y=df[target])
+                return bins.bins_map
+            else:
+                for col in cols_checked:
+                    df[col] = df[col].fillna('NaN')
+                    flat_cats = list(set(cat for group in fitted_info.keys() for cat in eval(group)))
+                    for cat in flat_cats:
+                        df[f"{col}_{cat}"] = (df[col] == cat).astype(int)
+                    df.drop(columns=col, inplace=True)
+                return df
+        _dummy_bin_str.__method_name__ = 'dummy_bin_str'
+        return _dummy_bin_str
 
 
-    @staticmethod
-    def sequential_bin_str(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None,
-                           min_n_bins:int=2, max_n_bins:int=10):
-        df = df.copy(deep=True)
-        cols = _check_str_cols(df, cols)
+    def sequential_bin_str(self, min_n_bins=2, max_n_bins=10):
+        def _sequential_bin_str(df, cols, target, fit=True, fitted_info=None):
+            df = df.copy(deep=True)
+            cols_checked = _check_str_cols(df, cols)
 
-        if (fit == True):
-            if (target is None):
-                raise ValueError("You must specify a target.")
-
-            fitted_info = CH_Binning(
-                min_n_bins=min_n_bins, max_n_bins=max_n_bins,
-                dtype='categorical', transform_func='sequence'
-            )
-            df[cols[0]] = fitted_info.fit(x=df[cols[0]], y=df[target])
-
-            return fitted_info
-
-        else:
-            for col in cols:
-                df[col] = fitted_info.transform(df[col])
-                
-            return df
-       
-
-    @staticmethod
-    def normalize_bin_str(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None,
-                          min_n_bins:int=2, max_n_bins:int=10):
-        df = df.copy(deep=True)
-        cols = _check_str_cols(df, cols)
-
-        if (fit == True):
-            if (target is None):
-                raise ValueError("You must specify a target.")
-
-            fitted_info = CH_Binning(
-                min_n_bins=min_n_bins, max_n_bins=max_n_bins,
-                dtype='categorical', transform_func='normalize'
-            )
-            df[cols[0]] = fitted_info.fit(x=df[cols[0]], y=df[target])
-
-            return fitted_info
-
-        else:
-            for col in cols:
-                df[col] = fitted_info.transform(df[col])
-                
-            return df
-       
-
-    @staticmethod
-    def normalize_float(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None,
-                        min_value:float=None, max_value:float=None, clip:bool=True):
-        cols = _check_float_cols(df, cols)
-        if (fit == True):
-            for col in cols:
-                min_value = df[col].min() if (min_value is None) else min_value
-                max_value = df[col].max() if (max_value is None) else max_value
-            return {'min': min_value, 'max': max_value, 'clip': clip}
-        else:
-            for col in cols:
-                df[col] = (df[col] - fitted_info['min']) / (fitted_info['max'] - fitted_info['min'])
-                if (fitted_info['clip'] == True):
-                    df[col] = df[col].clip(lower=fitted_info['min'], upper=fitted_info['max'])
-            return df
+            if fit:
+                binning = credmodex.rating.CH_Binning(
+                    min_n_bins=min_n_bins, max_n_bins=max_n_bins,
+                    dtype='categorical', transform_func='sequence'
+                )
+                df[cols_checked[0]] = binning.fit(x=df[cols_checked[0]], y=df[target])
+                return binning
+            else:
+                for col in cols_checked:
+                    df[col] = fitted_info.transform(df[col])
+                return df
+        _sequential_bin_str.__method_name__ = 'sequential_bin_str'
+        return _sequential_bin_str
 
 
-    @staticmethod
-    def exclude_str_columns(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None):
-        if (fit == True):
-            return {'exclude_str_columns': True}
-        else:
-            for col in cols:
-                if (col in df.columns) and (col not in TreatmentFunc().forbidden_cols):
-                    del df[col]
-            return df
+    def normalize_bin_str(self, min_n_bins=2, max_n_bins=10):
+        def _normalize_bin_str(df, cols, target, fit=True, fitted_info=None):
+            df = df.copy(deep=True)
+            cols_checked = _check_str_cols(df, cols)
+
+            if fit:
+                binning = credmodex.rating.CH_Binning(
+                    min_n_bins=min_n_bins, max_n_bins=max_n_bins,
+                    dtype='categorical', transform_func='normalize'
+                )
+                df[cols_checked[0]] = binning.fit(x=df[cols_checked[0]], y=df[target])
+                return binning
+            else:
+                for col in cols_checked:
+                    df[col] = fitted_info.transform(df[col])
+                return df
+        _normalize_bin_str.__method_name__ = 'normalize_bin_str'
+        return _normalize_bin_str
+
+
+    def normalize_float(self, min_value=None, max_value=None, clip=True):
+        def _normalize_float(df, cols, target, fit=True, fitted_info=None):
+            cols_checked = _check_float_cols(df, cols)
+            if fit:
+                return {
+                    'min': df[cols_checked[0]].min() if min_value is None else min_value,
+                    'max': df[cols_checked[0]].max() if max_value is None else max_value,
+                    'clip': clip
+                }
+            else:
+                for col in cols_checked:
+                    df[col] = (df[col] - fitted_info['min']) / (fitted_info['max'] - fitted_info['min'])
+                    if fitted_info['clip']:
+                        df[col] = df[col].clip(lower=fitted_info['min'], upper=fitted_info['max'])
+                return df
+        _normalize_float.__method_name__ = 'normalize_float'
+        return _normalize_float
+
+
+    def exclude_str_columns(self):
+        def _exclude_str_columns(df, cols, target, fit=True, fitted_info=None):
+            if fit:
+                return True
+            else:
+                for col in cols:
+                    if col in df.columns and col not in TreatmentFunc().forbidden_cols:
+                        del df[col]
+                return df
+        _exclude_str_columns.__method_name__ = 'exclude_str_columns'
+        return _exclude_str_columns
+
+
+    def exclude_nan_rows(self):
+        def _exclude_nan_rows(df, cols, target, fit=True, fitted_info=None):
+            cols_checked = _check_cols(df, cols)
+            if fit:
+                return True
+            else:
+                for col in cols_checked:
+                    df = df[df[col].notna()]
+                return df
+        _exclude_nan_rows.__method_name__ = 'exclude_nan_rows'
+        return _exclude_nan_rows
+
+
+    def datetime_parser(self, strftime=r'%Y-%m-%d'):
+        def _datetime_parser(df, cols, target, fit=True, fitted_info=None):
+            cols_checked = _check_datetime_cols(df, cols)
+            if fit:
+                return {'strftime': strftime}
+            else:
+                for col in cols_checked:
+                    df[col] = df[col].dt.strftime(fitted_info['strftime'])
+                return df
+        _datetime_parser.__method_name__ = 'datetime_parser'
+        return _datetime_parser
+
+
+    def auto(self):
+        def _auto(df, cols, target, fit=True, fitted_info=None):
+            return None
+        _auto.__method_name__ = 'auto'
+        return _auto
     
-    
-    @staticmethod
-    def exclude_nan_rows(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None):
-        cols = _check_cols(cols)
-        if (fit == True):
-            return {'exclude_nan_rows': True}
-        else:
-            for col in cols:
-                df = df[df[col].notna()]
-            return df
 
-    
-    @staticmethod
-    def datetime_parser(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None,
-                        strftime:str=r'%Y-%m-%d'):
-        cols = _check_datetime_cols(df, cols)
-        if (fit == True):
-            return {'strftime': strftime}
-        else:
-            for col in cols:
-                df[col] = df[col].dt.strftime(fitted_info['strftime'])
-            return df
-
-
-    @staticmethod
-    def auto(df:pd.DataFrame, cols:tuple, target:str, fit:bool=True, fitted_info:dict=None):
-        return None
+    @property
+    def pipeline_summary(self):
+        summary = {}
+        for col, steps in self.pipeline.items():
+            summary[col] = []
+            for func, fitted_info in steps:
+                # Try to get a readable name
+                if hasattr(func, '__method_name__'):
+                    name = func.__method_name__
+                elif hasattr(func, '__name__'):
+                    name = func.__name__
+                elif hasattr(func, '__class__'):
+                    name = func.__class__.__name__
+                else:
+                    name = str(func)
+                summary[col].append((name, fitted_info))
+        return summary
