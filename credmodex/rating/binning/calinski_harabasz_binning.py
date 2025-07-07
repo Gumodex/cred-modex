@@ -126,6 +126,16 @@ class CH_Binning():
 
         self.bins_map = bins
         return [bins[label] for label in list_]
+    
+
+    def __str__(self):
+        if ('Missing' in self.bins_map.keys()):
+            self.n_bins_ += 1
+        return f"<CH_Binning: {self.n_bins_} bins={self.bins_map}>"
+    
+
+    def __repr__(self):
+        return self.__str__()
 
 
 
