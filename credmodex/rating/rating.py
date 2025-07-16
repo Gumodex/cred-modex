@@ -10,10 +10,13 @@ import numpy as np
 import plotly
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.colors as pc
+import plotly.io as pio
+from graphmodex import plotlymodex
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating.binning import CH_Binning
-from credmodex.discriminancy.discriminants.ks_discriminant import KS_Discriminant
+from credmodex import discriminancy
 from credmodex.utils import *
 
 
@@ -25,16 +28,6 @@ __all__ = [
 class Rating():
     def __init__(self, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, time_col:str=None, model:type=CH_Binning(max_n_bins=15), 
                  type:str='score', optb_type:str='transform', doc:str=None, suppress_warnings:bool=False, name:str=None):
-        
-        if isinstance(features,str):
-            features = [features]
-        if (features is None):
-            features = df.columns.to_list()
-        features = [f for f in features 
-                    if f in df.columns 
-                    and f != target 
-                    and f != time_col
-                    and f != 'id']
         
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
@@ -51,10 +44,19 @@ class Rating():
 
         self.id = 'id'
         self.time_col = time_col
-        self.features = features
         self.target = target
         self.type = type
         self.suppress_warnings = suppress_warnings
+
+        self.forbidden_cols = ['split', 'score', 'rating', self.id, self.target, self.time_col]
+        if isinstance(features,str):
+            features = [features]
+        if (features is None):
+            features = df.columns.to_list()
+        features = [f for f in features 
+                    if f in df.columns 
+                    and f not in self.forbidden_cols]
+        self.features = features
         
         self.train_test_()
 
@@ -71,6 +73,7 @@ class Rating():
         if (self.type == 'score'):
             try:
                 self.fit_predict_score()
+                self.n_ratings = len(self.df['rating'].unique())
             except Exception as e:
                 print("ERROR IN fit_predict_score:", str(e))
                 raise
@@ -81,7 +84,7 @@ class Rating():
             self.train = self.df[self.df['split'] == 'train']
             self.test = self.df[self.df['split'] == 'test']
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col, 'id']]
+            transformed_features = [col for col in self.df.columns if col not in self.forbidden_cols]
             self.features = transformed_features
 
             self.X_train = self.df[self.df['split'] == 'train'][self.features]
@@ -97,7 +100,7 @@ class Rating():
             self.train = self.df
             self.test = self.df
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', 'target', self.time_col, 'id']]
+            transformed_features = [col for col in self.df.columns if col not in self.forbidden_cols]
             self.features = transformed_features
 
             self.X_train = self.df[self.features]
@@ -189,7 +192,6 @@ class Rating():
             return df_
         raise ValueError(f"Unknown optb_type: {self.optb_type}")
     
-
         
     @staticmethod
     def map_to_alphabet_(bin_list):
@@ -485,7 +487,7 @@ class Rating():
 
         if show_scatter:
             fig.add_trace(trace=go.Scatter(
-                x=df['ratings'], y=df['percent'],
+                x=df['ratings'], y=df['percent'], name='-',
                 line=dict(color='#AAAAAA', width=3), mode='lines', showlegend=False
             ))
             fig.add_trace(go.Scatter(
@@ -501,8 +503,52 @@ class Rating():
             ))
         return fig
     
+    
+    def plot_calibration_curve(self, split:list|Literal['train','test','oot']=['train','test','oot'], width=700, height=600):
+        if isinstance(split, str):
+            split = [split]
+        try:
+            dff = self.df[self.df['split'].isin(split)].copy(deep=True)
+        except:
+            if ('split' not in self.df.columns) and (not getattr(self, 'suppress_warnings', False)):
+                warnings.warn(
+                    'No column ["split"] was found, therefore, the whole `df` will be used in this method',
+                    category=UserWarning
+                )
+            dff = self.df.copy(deep=True)
 
-    def plot_rating_infos(self, split:list|Literal['train','test','oot']=['train','test','oot'], width=1400, height=1000):
+        dff['y_true'] = dff[self.target].apply(lambda x: 1-x)  
+
+        grouped = dff.groupby('rating').agg(
+            prob_pred=('score', 'mean'),
+            prob_true=('y_true', 'mean')  # Since original target = 1 for class 0
+        ).reset_index()
+        grouped = grouped.sort_values(by='prob_pred')
+        
+        fig = go.Figure()
+
+        # Modelo
+        fig.add_trace(go.Scatter(
+            x=grouped['prob_pred'], y=grouped['prob_true'], mode='lines+markers',
+            marker=dict(color='#38ada9', size=8), name='Model'
+        ))
+
+        # Linha perfeita (calibrado)
+        fig.add_trace(go.Scatter(
+            x=[0, 1], y=[0, 1], mode='lines',
+            name='Perfect', line=dict(color='#707070', dash='dash')
+        ))
+
+        plotlymodex.main_layout(
+            fig, title='Calibration Curve', x='Predicted Probability', y='Observed Frequency', 
+            width=width, height=height
+        )
+
+        return fig
+
+
+    def plot_rating_infos(self, split:list|Literal['train','test','oot']=['train','test','oot'], width=1400, height=1700,
+                          renderer:Literal['notebook', 'browser', 'png']=None, title=f'Basic Rating Evaluation'):
         if isinstance(split, str):
             split = [split]
         try:
@@ -515,32 +561,74 @@ class Rating():
                 )
             dff = self.df.copy(deep=True)
         
-        fig_gains = self.plot_gains_per_risk_group(split=split)['data']
-        fig_stab = self.plot_stability_in_time(split=split)['data']
-        fig_stab_ = self.plot_stability_in_time(split=split, agg_func='count', percent=False, stackgroup=True)['data']
-        fig_ks = KS_Discriminant(dff, target=self.target, features='rating').plot()['data']
+        fig_gains = self.plot_gains_per_risk_group(split=split)
+        fig_stab = self.plot_stability_in_time(split=split)
+        fig_stab_count = self.plot_stability_in_time(split=split, agg_func='count', percent=False, stackgroup=True)
+        fig_ks = discriminancy.discriminants.KS_Discriminant(dff, target=self.target, features='rating').plot()
+        fig_calibr = self.plot_calibration_curve(split=split)
 
-        fig = plotly.subplots.make_subplots(
-            rows=2, cols=2,
-            subplot_titles=(
-                'Gains por Risk Group', 
-                'Kolmogorov-Smirnov Discriminant',
-                f'Stability in Time | Metric',
-                'Stability in Time | Volumetry',
-            ),
-            vertical_spacing=0.1,
-            horizontal_spacing=0.05,
-            y_title='percent [%] | volume [*]', 
+        auc = discriminancy.discriminants.GINI_Discriminant(dff, target=self.target, features='rating')
+        fig_auc = auc.plot(method='cap')
+        auc_value = auc.value(final_value=True)
+        
+        fig_target = plotlymodex.frequency(dff, x='score', covariate=self.target, opacity=0.4)
+        fig_ratings = plotlymodex.frequency(
+            dff.sort_values('rating', ascending=False), x='score', covariate='rating', bin_size=0.01, opacity=0.4, 
+            colors=pc.sample_colorscale('turbo', list(reversed([i / (self.n_ratings - 1) for i in range((self.n_ratings))])))
         )
-        for fig_ in fig_gains:
-            fig.add_trace(fig_, row=1, col=1)
-        for fig_ in fig_ks:
-            fig.add_trace(fig_, row=1, col=2)
-        for fig_ in fig_stab:
-            fig.add_trace(fig_, row=2, col=1)
-        for fig_ in fig_stab_:
-            fig.add_trace(fig_, row=2, col=2)
 
-        plotly_main_subplot_layout(fig, title=f'Basic Rating Evaluation | {self.target}', width=width, height=height)
+        fig = plotlymodex.subplot(
+            figs=[fig_gains, fig_ks, fig_stab, fig_stab_count, fig_calibr, fig_auc, fig_target, fig_ratings],
+            rows=4, cols=2, legends=[0, 1, 0, 1, 1, 1, 1, 0,], 
+            subplot_titles=(
+                f'Gains por Risk Group', 
+                f'Kolmogorov-Smirnov Discriminant',
+                f'Stability in Time | {self.target}',
+                f'Stability in Time | Volumetry',
+                f'Calibration',
+                f'Gini & Lorenz CAP | D = {(100+auc_value)/2:.2f}%',
+                f'Frequency of Score considering Over',
+                f'Frequency of Score considering Rating',
+            ), horizontal_spacing=0.07, vertical_spacing=0.06,
+        )
+
+        plotlymodex.main_layout(
+            fig, title=title, y='percent [%] | volume [*]', x='rating | time [*] | percent [%]',
+            width=width, height=height
+        )
+
+        if (renderer is not None):
+            pio.renderers.default = renderer
 
         return fig
+    
+
+    def y_true(self, split:list[Literal['train','test','oot']]|str=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
+        y_true = self.df[
+            (self.df[self.target].notna()) &
+            (self.df['split'].isin(split))
+        ][self.target].tolist()
+        return np.array(y_true)
+    
+
+    def y_pred(self, split:list[Literal['train','test','oot']]|str=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
+        y_pred = self.df[
+            (self.df[self.target].notna()) &
+            (self.df['split'].isin(split))
+        ]['rating'].tolist()
+        return np.array(y_pred)
+    
+
+    def y_pred_score(self, split:list[Literal['train','test','oot']]|str=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
+        y_pred_score = self.df[
+            (self.df[self.target].notna()) &
+            (self.df['split'].isin(split))
+        ]['score'].tolist()
+        return np.array(y_pred_score)
+    
