@@ -6,7 +6,7 @@ import numpy as np
 from functools import partial
 import warnings
 
-from typing import Union, Callable, Dict, Tuple, List
+from typing import Union, Callable, Dict, Tuple, List, Literal
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating import CH_Binning
@@ -15,6 +15,48 @@ from credmodex.rating import CH_Binning
 __all__ = [
     'TreatentFunc'
 ]
+
+
+def _normalize_dtype(dtype):
+    if pd.api.types.is_string_dtype(dtype):
+        return 'string'
+    elif pd.api.types.is_numeric_dtype(dtype):
+        return 'numeric'
+    elif pd.api.types.is_datetime64_any_dtype(dtype):
+        return 'datetime'
+    elif pd.api.types.is_bool_dtype(dtype):
+        return 'bool'
+    else:
+        return str(dtype)
+
+
+def _check_dtype_mismatches(df_expected: pd.DataFrame, df_actual: pd.DataFrame, columns: list, suppress_warnings: bool = False, context: str = "transform"):
+    expected_dtypes = df_expected[columns].dtypes.to_dict()
+    actual_dtypes = df_actual.dtypes.to_dict()
+
+    mismatches = {
+        col: (expected_dtypes[col], actual_dtypes.get(col))
+        for col in columns
+        if col in actual_dtypes and _normalize_dtype(expected_dtypes[col]) != _normalize_dtype(actual_dtypes[col])
+    }
+
+    if mismatches and not suppress_warnings:
+        warnings.warn(
+            f"[{context}] Column type mismatches found: {mismatches}",
+            category=UserWarning
+        )
+
+
+def _ensure_columns_exist(df: pd.DataFrame, expected_columns: list, suppress_warnings: bool = False, context: str = "transform"):
+    missing = [col for col in expected_columns if col not in df.columns]
+    for col in missing:
+        df[col] = pd.NA
+        if not suppress_warnings:
+            warnings.warn(
+                f"Column '{col}' is missing in DataFrame during `{context}` and was added with NaN values.",
+                category=UserWarning
+            )
+    return df
 
 
 def _check_cols(df: pd.DataFrame = None, cols: tuple = None):
@@ -54,18 +96,42 @@ def _check_datetime_cols(df:pd.DataFrame=None, cols:tuple=None):
     return cols
 
 
+def min_max_dict_normalize(data_dict:dict):
+    values = list(data_dict.values())
+    min_val = min(values)
+    max_val = max(values)
+    
+    # Avoid division by zero if all values are the same
+    if min_val == max_val:
+        return {k: 0.0 for k in data_dict}
+    
+    normalized_dict = {
+        k: (v - min_val) / (max_val - min_val)
+        for k, v in data_dict.items()
+    }
+    
+    return normalized_dict
+
+
 class TreatmentFunc:
-    def __init__(self, df:pd.DataFrame=pd.DataFrame(), target:str=None):
+    def __init__(self, df:pd.DataFrame=pd.DataFrame(), target:str=None, features:list[str]=None, time_col:str=None,
+                 include_features:bool=True, suppress_warnings:bool=False):
+        self.raw_df = df.copy(deep=True)
         self.df = df.copy(deep=True)
         self.target = target
-        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target]
+        self.time_col = time_col
+        self.features = features
+        self.include_features = include_features
+        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, self.time_col]
         self.pipeline = {}
+        self.suppress_warnings = suppress_warnings
 
         self.methods = {
             'fillna': self.fillna,
+            'fillna_all': self.fillna_all,
             'exclude_columns': self.exclude_columns,
             'include_columns': self.include_columns,
-            'dummy_bin_str': self.dummy_bin_str,
+            # 'dummy_bin_str': self.dummy_bin_str,
             'sequential_bin_str': self.sequential_bin_str,
             'normalize_bin_str': self.normalize_bin_str,
             'normalize_float': self.normalize_float,
@@ -75,10 +141,16 @@ class TreatmentFunc:
             'auto': self.auto,
         }
 
+        self.forbidden_cols = [col for col in self.forbidden_cols if col in self.df.columns]
+        if self.features is not None and self.include_features:
+            self.combined_cols = list(dict.fromkeys(self.features + self.forbidden_cols))
+            self.raw_df = self.raw_df.loc[:, self.combined_cols]
+            self.df = self.df.loc[:, self.combined_cols]
+
 
     def fit(self, strategy):
-        df = self.df.copy(deep=True)  # Use this as a working df to carry forward changes
-        self.fitted_columns = df.columns.tolist()
+        df = self.raw_df.copy(deep=True)  # Use this as a working df to carry forward changes
+        self.raw_df_columns_ = list(dict.fromkeys(df.columns.tolist() + self.forbidden_cols))
         self.strategy = strategy
 
         for cols, funcs in strategy.items():
@@ -86,7 +158,7 @@ class TreatmentFunc:
                 cols = (cols,)
             if not isinstance(funcs, (list, tuple)):
                 funcs = [funcs]
-
+            
             for col in cols:
                 for func in funcs:
                     if isinstance(func, str):
@@ -99,38 +171,48 @@ class TreatmentFunc:
 
                     fitted_info = method_func(df=df, cols=col, target=self.target, fit=True)
                     self.pipeline.setdefault(col, []).append((method_func, fitted_info))
-
-                    # Apply transform immediately after fit to update df
                     df = method_func(df=df, cols=col, target=self.target, fit=False, fitted_info=fitted_info)
+            
+        self.df = self.transform(self.raw_df)
+        self.df_columns_ = self.df.columns.tolist()
+        self.features = [col for col in self.df_columns_ if col not in self.forbidden_cols]
 
 
-    def transform(self, df:pd.DataFrame=None):
+    def transform(self, df: pd.DataFrame = None):
         if df is None:
-            df = self.df.copy(deep=True)
+            df = self.raw_df.copy(deep=True)
         else:
             df = df.copy(deep=True)
 
-        if hasattr(self, "fitted_columns"):
-            missing = [col for col in self.fitted_columns if col not in df.columns]
-            for col in missing:
-                df[col] = None
-                warnings.warn(f"Columns {missing} are missing in transform() and were added with NaN values.")
-            df = df.loc[:, self.fitted_columns]
+        if hasattr(self, "raw_df_columns_"):
+            df = _ensure_columns_exist(df, self.raw_df_columns_, self.suppress_warnings, context="raw_df_columns_")
 
-            expected_dtypes = self.df[self.fitted_columns].dtypes.to_dict()
-            actual_dtypes = df.dtypes.to_dict()
-            type_mismatches = {col: (expected_dtypes[col], actual_dtypes.get(col)) 
-                            for col in self.fitted_columns 
-                            if col in actual_dtypes and expected_dtypes[col] != actual_dtypes[col]}
-            if type_mismatches:
-                warnings.warn(f"Column type mismatches found: {type_mismatches}")
+            if self.include_features:
+                df = df[self.raw_df_columns_]
 
+            _check_dtype_mismatches(self.raw_df, df, self.raw_df_columns_, self.suppress_warnings, context="raw_df_columns_")
+
+        # Apply transformations
         for col, steps in self.pipeline.items():
             for method_func, fitted_info in steps:
                 df = method_func(df=df, cols=col, target=self.target, fit=False, fitted_info=fitted_info)
 
+        if hasattr(self, "df_columns_"):
+            df = _ensure_columns_exist(df, self.df_columns_, self.suppress_warnings, context="df_columns_")
+
+            new_columns = [col for col in df.columns if col not in self.df_columns_]
+            for col in new_columns:
+                if not self.suppress_warnings:
+                    warnings.warn(
+                        f"Column {col} is new and was not present in fit(). Be cautious.",
+                        category=UserWarning
+                    )
+
+            df = df[self.df_columns_]
+            _check_dtype_mismatches(self.df, df, self.df_columns_, self.suppress_warnings, context="df_columns_")
+
         return df
-    
+
 
     def fillna(self, value=0):
         def _fillna(df, cols, target, fit=True, fitted_info=None):
@@ -145,14 +227,41 @@ class TreatmentFunc:
         return _fillna
 
 
+    def fillna_all(self, value: Union[float, Literal['mode', 'mean']] = 'mode'):
+        def _fillna(df, cols, target=None, fit=True, fitted_info=None):
+            if fit:
+                fill_values = {}
+                for col in [c for c in df.columns.to_list() if c not in self.forbidden_cols]:
+                    if value == 'mode':
+                        mode_series = df[col].mode()
+                        fill_values[col] = mode_series.iloc[0] if not mode_series.empty else None
+                    elif value == 'mean':
+                        try:
+                            mean_series = df[col].mean()
+                            fill_values[col] = mean_series.iloc[0] if not mean_series.empty else None
+                        except:
+                            mode_series = df[col].mode()
+                            fill_values[col] = mode_series.iloc[0] if not mode_series.empty else None
+                    else:
+                        fill_values[col] = 0
+                return fill_values
+            else:
+                for col in fitted_info.keys():
+                    df[col] = df[col].fillna(fitted_info.get(col, value))
+                return df
+
+        _fillna.__method_name__ = 'fillna'
+        return _fillna
+
+
     def exclude_columns(self):
         def _exclude_columns(df, cols, target, fit=True, fitted_info=None):
             cols_checked = _check_cols(df, cols)
             if fit:
-                return cols_checked
+                return True
             else:
-                for col in fitted_info:
-                    if col in df.columns:
+                for col in cols_checked:
+                    if (col in df.columns) and (col not in self.forbidden_cols):
                         del df[col]
                 return df
         _exclude_columns.__method_name__ = 'exclude_columns'
@@ -163,15 +272,15 @@ class TreatmentFunc:
         def _include_columns(df, cols, target, fit=True, fitted_info=None):
             cols_checked = _check_cols(df, cols)
             if fit:
-                return cols_checked
+                return True
             else:
-                df = df.loc[:, df.columns.isin(fitted_info + TreatmentFunc().forbidden_cols)]
+                df = df.loc[:, df.columns.isin(list(cols_checked) + TreatmentFunc().forbidden_cols)]
                 return df
         _include_columns.__method_name__ = 'include_columns'
         return _include_columns
 
 
-    def dummy_bin_str(self, min_n_bins=2, max_n_bins=10):
+    # def dummy_bin_str(self, min_n_bins=2, max_n_bins=10):
         def _dummy_bin_str(df, cols, target, fit=True, fitted_info=None):
             df = df.copy(deep=True)
             cols_checked = _check_str_cols(df, cols)
@@ -184,12 +293,8 @@ class TreatmentFunc:
                 df[cols_checked[0]] = bins.fit(x=df[cols_checked[0]], y=df[target])
                 return bins.bins_map
             else:
-                for col in cols_checked:
-                    df[col] = df[col].fillna('NaN')
-                    flat_cats = list(set(cat for group in fitted_info.keys() for cat in eval(group)))
-                    for cat in flat_cats:
-                        df[f"{col}_{cat}"] = (df[col] == cat).astype(int)
-                    df.drop(columns=col, inplace=True)
+                ...
+
                 return df
         _dummy_bin_str.__method_name__ = 'dummy_bin_str'
         return _dummy_bin_str
@@ -248,7 +353,7 @@ class TreatmentFunc:
                 for col in cols_checked:
                     df[col] = (df[col] - fitted_info['min']) / (fitted_info['max'] - fitted_info['min'])
                     if fitted_info['clip']:
-                        df[col] = df[col].clip(lower=fitted_info['min'], upper=fitted_info['max'])
+                        df[col] = df[col].clip(lower=0, upper=1)  # ✅ Corrected here
                 return df
         _normalize_float.__method_name__ = 'normalize_float'
         return _normalize_float
@@ -259,22 +364,21 @@ class TreatmentFunc:
             if fit:
                 return True
             else:
-                for col in cols:
-                    if col in df.columns and col not in TreatmentFunc().forbidden_cols:
+                for col in df.columns.tolist():
+                    if (col in df.select_dtypes(include=['object', 'string']).columns.tolist()) and (col not in self.forbidden_cols):
                         del df[col]
                 return df
         _exclude_str_columns.__method_name__ = 'exclude_str_columns'
         return _exclude_str_columns
 
 
-    def exclude_nan_rows(self):
+    def exclude_nan_rows(self,):
         def _exclude_nan_rows(df, cols, target, fit=True, fitted_info=None):
             cols_checked = _check_cols(df, cols)
             if fit:
                 return True
             else:
-                for col in cols_checked:
-                    df = df[df[col].notna()]
+                df = df.dropna(subset=cols)
                 return df
         _exclude_nan_rows.__method_name__ = 'exclude_nan_rows'
         return _exclude_nan_rows
@@ -298,7 +402,6 @@ class TreatmentFunc:
             return None
         _auto.__method_name__ = 'auto'
         return _auto
-    
 
     @property
     def pipeline_summary(self):
