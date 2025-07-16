@@ -75,11 +75,11 @@ class CH_Binning():
             
             # Do NOT modify bins_map again — reuse the one from fit
             if (self.transform_func == 'alphabet'):
-                return [self.bins_map.get(label, np.nan) for label in pred_]
+                return self._convert_categorical(bins=self.bins_map, list_=pred_)
             elif (self.transform_func == 'sequence'):
-                return [self.bins_map.get(label, np.nan) for label in pred_]
+                return self._convert_categorical_to_numerical(bins=self.bins_map, list_=pred_)
             elif (self.transform_func == 'normalize'):
-                return [self.bins_map.get(label, np.nan) for label in pred_]
+                return self._convert_categorical_to_normal(bins=self.bins_map, list_=pred_)
         
         raise TypeError('Unsupported dtype or transform_func')
 
@@ -107,7 +107,7 @@ class CH_Binning():
                 letter += 1
 
         self.bins_map = bins
-        return [bins[label] for label in list_]
+        return [bins.get(label, 0.0) for label in list_]
 
 
     def _convert_categorical_to_numerical(self, bins:dict, list_:list):
@@ -117,7 +117,7 @@ class CH_Binning():
             bins[key] = value
 
         self.bins_map = bins
-        return [bins[label] for label in list_]
+        return [bins.get(label, 0.0) for label in list_]
 
 
     def _convert_categorical_to_normal(self, bins:dict, list_:list):
@@ -129,15 +129,18 @@ class CH_Binning():
             bins[key] = round(abs((value - _max) / (_min - _max)),6)
 
         self.bins_map = bins
-        default_val = np.nan  # or np.nan, or 0.0 depending on your needs
-        return [bins.get(label, default_val) for label in list_]
+        return [bins.get(label, 0.0) for label in list_]
     
 
     def __str__(self):
-        if ('Missing' in self.bins_map.keys()):
-            return f"<CH_Binning: {self.n_bins_+1} bins={self.bins_map}>"
-        return f"<CH_Binning: {self.n_bins_} bins={self.bins_map}>"
-    
+        try:
+            if ('Missing' in self.bins_map.keys()):
+                return f"<CH_Binning: {self.n_bins_+1} bins={self.bins_map}>"
+            else:
+                return f"<CH_Binning: {self.n_bins_} bins={self.bins_map}>"
+        except:
+                return f"<CH_Binning: not>"
+            
 
     def __repr__(self):
         return self.__str__()
