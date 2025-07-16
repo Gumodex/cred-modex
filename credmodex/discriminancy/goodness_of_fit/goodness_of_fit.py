@@ -3,7 +3,10 @@ import pandas as pd
 import scipy.stats
 import sklearn.linear_model
 
+from typing import Literal
+
 import sklearn.metrics
+
 
 
 __all__ = [
@@ -864,7 +867,6 @@ class GoodnessFit:
         - Based on deviance and expected likelihood.
         """
         assert set(np.unique(y_true)).issubset({0, 1})
-        assert (y_pred.min() >= 0) and (y_pred.min() <= 1)
         y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
 
         dff = pd.DataFrame({
@@ -1191,6 +1193,117 @@ class GoodnessFit:
                     'p_value': p_value
                 })
         return results
+
+
+    @staticmethod
+    def brier_score(y_true:list, y_pred:list, prob_base_0:bool=True) -> float:
+        """
+        Compute the Brier Score manually without sklearn.
+
+        Parameters
+        ----------
+        y_true : list
+            Binary ground truth labels (0 or 1).
+        y_pred : list
+            Predicted probabilities for class 0 or 1.
+        prob_base_0 : bool, optional
+            If True, assumes y_pred is for class 0 and converts to class 1.
+
+        Returns
+        -------
+        float
+            Brier Score (lower is better), rounded to 4 decimal places.
+        """
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
+        y_true = np.array(y_true, dtype=float)
+        brier = np.mean((y_pred - y_true) ** 2)
+        return float(round(brier, 4))
+
+
+    @staticmethod
+    def expected_calibration_error(y_true:list, y_pred:list, n_bins:int=10, prob_base_0:bool=True) -> float:
+        """
+        Compute the Expected Calibration Error (ECE) for probabilistic classifiers.
+
+        Parameters
+        ----------
+        y_true : list
+            Binary ground truth labels (0 or 1).
+        y_pred : list
+            Predicted probabilities for class 0 or 1.
+        n_bins : int, optional
+            Number of bins to use in calibration curve (default is 10).
+        prob_base_0 : bool, optional
+            If True, assumes predictions are for class 0 and converts to class 1.
+
+        Returns
+        -------
+        float
+            ECE value (lower is better), rounded to 4 decimal places.
+        """
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
+
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+
+        bins = np.linspace(0.0, 1.0, n_bins + 1)
+        bin_indices = np.digitize(y_pred, bins) - 1
+
+        ece = 0.0
+        for i in range(n_bins):
+            mask = bin_indices == i
+            if np.any(mask):
+                bin_accuracy = np.mean(y_true[mask])
+                bin_confidence = np.mean(y_pred[mask])
+                ece += np.abs(bin_accuracy - bin_confidence) * np.sum(mask) / len(y_true)
+
+        return float(round(ece, 4))
+
+
+    @staticmethod
+    def plot_calibration_curve(y_true:list, y_pred:list, n_bins:int=10, prob_base_0:bool=True,
+                               strategy:Literal['uniform', 'quantile']="uniform"):
+        """
+        Plot the calibration (reliability) curve using Plotly.
+
+        Parameters
+        ----------
+        y_true : list
+            Binary ground truth labels (0 or 1).
+        y_pred : list
+            Predicted probabilities.
+        n_bins : int, optional
+            Number of bins to use (default is 10).
+        prob_base_0 : bool, optional
+            If True, assumes y_pred is probability of class 0 and converts to class 1.
+        """
+        from sklearn.calibration import calibration_curve
+        from graphmodex import plotlymodex
+        import plotly.graph_objects as go
+
+        y_pred = GoodnessFit.ensure_prob_of_class_1(y_pred, prob_base_0)
+
+        prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=n_bins, strategy=strategy)
+
+        fig = go.Figure()
+
+        # Modelo
+        fig.add_trace(go.Scatter(
+            x=prob_pred, y=prob_true, mode='lines+markers',
+            marker=dict(color='#38ada9', size=8), name='Model'
+        ))
+
+        # Linha perfeita (calibrado)
+        fig.add_trace(go.Scatter(
+            x=[0, 1], y=[0, 1], mode='lines',
+            name='Perfect', line=dict(color='#707070', dash='dash')
+        ))
+
+        plotlymodex.main_layout(fig, title='Calibration Curve', x='Predicted Probability', y='Observed Frequency')
+
+        return fig
+
+
 
 
 if __name__ == '__main__':
