@@ -78,7 +78,7 @@ class CredLab:
 
         elif isinstance(self.out_of_time, str):
             self.df[self.time_column] = pd.to_datetime(self.df[self.time_column])
-            self.df = self.df.sort_values(by=[self.time_column])
+            self.df = self.df.sort_values(by=[self.time_column]).reset_index(drop=True)
 
             on_time = self.df[self.df[self.time_column] <= self.out_of_time].index.to_list()
             oot = self.df[self.df[self.time_column] > self.out_of_time].index.to_list()
@@ -86,9 +86,13 @@ class CredLab:
             self.df.loc[on_time, 'split'] = 'on_time'
             self.df.loc[oot, 'split'] = 'oot'
 
+            null_target_mask = self.df[self.target].isna()
+            self.df.loc[(self.df['split'] == 'on_time') & null_target_mask, 'split'] = 'ttd'
+            self.df.loc[(self.df['split'] == 'oot') & null_target_mask, 'split'] = 'out'
+
         elif isinstance(self.out_of_time, float):
             self.df[self.time_column] = pd.to_datetime(self.df[self.time_column])
-            self.df = self.df.sort_values(by=[self.time_column])
+            self.df = self.df.sort_values(by=[self.time_column]).reset_index(drop=True)
 
             # Define the cut-off date for the split
             self.df['scaled'] = (self.df[self.time_column] - self.df[self.time_column].min()) / (self.df[self.time_column].max() - self.df[self.time_column].min())
@@ -108,6 +112,10 @@ class CredLab:
             self.df.loc[on_time, 'split'] = 'on_time'
             self.df.loc[oot, 'split'] = 'oot'
 
+            null_target_mask = self.df[self.target].isna()
+            self.df.loc[(self.df['split'] == 'on_time') & null_target_mask, 'split'] = 'ttd'
+            self.df.loc[(self.df['split'] == 'oot') & null_target_mask, 'split'] = 'out'
+
         else:
             raise ValueError("´´out_of_time´´ must be a float or a string representing a date.")
 
@@ -126,30 +134,30 @@ class CredLab:
         self.y_test = self.df[self.df['split'] == 'test'][self.target]
 
 
-    def plot_train_test_split(self, graph_lib:str='plotly', freq='%Y-%m', width:int=900, height:int=450):
+    def plot_train_test_split(self, split:list[Literal['train', 'test', 'oot', 'ttd', 'out']]=['train', 'test', 'oot', 'ttd', 'out'],
+                              graph_lib:str='plotly', freq='%Y-%m', width:int=900, height:int=450):
         self.df.loc[:, 'id_'] = 1
         self.grouped = self.df.groupby([pd.to_datetime(self.df[self.time_column]).dt.strftime(f'{freq}'),'split']).agg({'id_': 'count'}).reset_index()
-        train = self.grouped[self.grouped['split'] == 'train']
-        test = self.grouped[self.grouped['split'] == 'test']
-        oot = self.grouped[self.grouped['split'] == 'oot']
+        list_ = []
+        if 'train' in split:
+            list_.append([self.grouped[self.grouped['split'] == 'train'], 'Train', '#292929'])
+        if 'test' in split:
+            list_.append([self.grouped[self.grouped['split'] == 'test'], 'Test', '#704cae'])
+        if 'oot' in split:
+            list_.append([self.grouped[self.grouped['split'] == 'oot'], 'OoT', '#8edb29'])
+        if 'ttd' in split:
+            list_.append([self.grouped[self.grouped['split'] == 'ttd'], 'TtD', '#43dfd5'])
+        if 'out' in split:
+            list_.append([self.grouped[self.grouped['split'] == 'out'], 'OuT', '#e84f70'])
 
         if graph_lib == 'plotly':
             fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=train[self.time_column],
-                y=train['id_'],
-                name='Train', marker=dict(color='#292929')
-            ))
-            fig.add_trace(go.Bar(
-                x=test[self.time_column],
-                y=test['id_'],
-                name='Test', marker=dict(color='#704cae')
-            ))
-            fig.add_trace(go.Bar(
-                x=oot[self.time_column],
-                y=oot['id_'],
-                name='OoT', marker=dict(color='#8edb29')
-            ))
+            for trace in list_:
+                fig.add_trace(go.Bar(
+                    x=trace[0][self.time_column],
+                    y=trace[0]['id_'],
+                    name=trace[1], marker=dict(color=trace[-1])
+                ))
             from credmodex.utils.design import plotly_main_layout
             plotly_main_layout(fig, title='Train-Test Split', x='Time', y='Count', 
                 height=height, width=width, barmode='stack'
@@ -303,30 +311,32 @@ class CredLab:
             print(IV_Discriminant(df=rating.df, target=self.target, features=['rating']+comparison_cols).table())
 
 
-    def eval_best_model(self, sort:str=None, split:Literal['train','test','oot']=None):
+    def eval_best_model(self, sort:str='ks', split:Literal['train','test','oot']=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
         metrics_dict = {}
 
         for model_name, model in self.models.items():
             if (split is not None):
-                y_true = model.df[self.df['split'] == split][model.target]
-                y_pred = model.df[self.df['split'] == split]['score']
-                dff = model.df[self.df['split'] == split].copy(deep=True)
+                y_true = model.y_true(split=split)
+                y_pred = model.y_pred(split=split)
+                dff = model.df[(self.model.df['split'].isin(split)) & (model.df[model.target].notna())].copy(deep=True)
             else:
-                y_true = model.df[model.target]
-                y_pred = model.df['score']
-                dff = model.df.copy(deep=True)
+                y_true = model.y_true()
+                y_pred = model.y_pred()
+                dff = model.df[model.df[model.target].notna()].copy(deep=True)
 
             auc, auc_variance = GoodnessFit.delong_roc_variance(y_true=y_true, y_pred=y_pred)
             gini_info = GoodnessFit.gini_variance(y_true=y_true, y_pred=y_pred, info=True)
             gini = gini_info['Gini']
-            gini_lower = gini_info['Gini CI Lower']
-            gini_upper = gini_info['Gini CI Upper']
-            hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
+            hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True, g=8)
+            brier_score = GoodnessFit.brier_score(y_true=y_true, y_pred=y_pred)
+            ece = GoodnessFit.expected_calibration_error(y_true=y_true, y_pred=y_pred, n_bins=10)
             log_likelihood = GoodnessFit.log_likelihood(y_true=y_true, y_pred=y_pred)
             aic = GoodnessFit.aic(y_true=y_true, y_pred=y_pred, n_features=model.n_features)
             bic = GoodnessFit.bic(y_true=y_true, y_pred=y_pred, n_features=model.n_features, sample_size=len(dff))
-            wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
-            deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
+            wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)
+            deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)
 
             try: iv = IV_Discriminant(dff, model.target, ['score']).value('score', final_value=True)
             except: iv = np.nan
@@ -348,11 +358,12 @@ class CredLab:
                 'auc': auc,
                 'auc variance': auc_variance,
                 'gini': gini,
-                'gini ci lower': gini_lower,
-                'gini ci upper': gini_upper,
-                'hosmer-lemeshow': hosmer_lemershow,
-                'wald test': wald_test,
-                'power odds': deviance_odds,
+                'hosmer-lemeshow': hosmer_lemershow['HL'],
+                'hosmer conclusion': hosmer_lemershow['conclusion'],
+                'brier': brier_score,
+                'ece': ece,
+                'wald test': wald_test['conclusion'],
+                'deviance odds power': deviance_odds['power'],
                 'log-likelihood': round(log_likelihood,1),
                 'aic': round(aic,1),
                 'bic': round(bic,1),
@@ -373,7 +384,9 @@ class CredLab:
         return dff
 
 
-    def eval_best_rating(self, sort:str=None, split:Literal['train','test','oot']=None):
+    def eval_best_rating(self, sort:str='ks', split:Literal['train','test','oot']=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
         dff = pd.DataFrame()
         for model_name, model in self.models.items():
             try: 
