@@ -35,21 +35,6 @@ class BaseModel:
         if (treatment is None):
             treatment = lambda df: df
 
-        if isinstance(features,str):
-            self.features = [features]
-        else:
-            self.features = features
-        self.features = [f for f in features 
-                         if f in df.columns 
-                         and f != target 
-                         and f != time_col
-                         and f != 'id']
-
-        if (n_features is None):
-            self.n_features = len(self.features)
-        else:
-            self.n_features = n_features
-
         self.seed = seed
         np.random.seed(self.seed)
 
@@ -63,6 +48,17 @@ class BaseModel:
         self.name = name
         self.predict_type = predict_type
         self.suppress_warnings = suppress_warnings
+
+        if isinstance(features,str):
+            self.features = [features]
+        else:
+            self.features = features
+        
+        self.forbidden_cols = ['split', 'score', 'rating', self.id, self.target, self.time_col]
+        self.features = [f for f in features 
+                         if f in df.columns 
+                         and f not in self.forbidden_cols]
+        self.n_features = len(self.features)
 
         self.ratings = {}
 
@@ -90,10 +86,6 @@ class BaseModel:
             self.train = self.df[self.df['split'] == 'train']
             self.test = self.df[self.df['split'] == 'test']
 
-            transformed_features = [col for col in self.df.columns if col not in ['split', self.target, self.time_col]]
-            self.features = transformed_features
-            self.n_features = len(transformed_features)
-
             self.X_train = self.df[self.df['split'] == 'train'][self.features]
             self.X_test = self.df[self.df['split'] == 'test'][self.features]
             self.y_train = self.df[self.df['split'] == 'train'][self.target]
@@ -104,12 +96,8 @@ class BaseModel:
                     'No column ["split"] was found, therefore, the whole `df` will be used in training and testing',
                     category=UserWarning
                 )
-            self.train = self.df
-            self.test = self.df
-
-            transformed_features = [col for col in self.df.columns if col not in ['split', self.target, self.time_col]]
-            self.features = transformed_features
-            self.n_features = len(transformed_features)
+            self.train = self.df.copy(deep=True)
+            self.test = self.df.copy(deep=True)
 
             self.X_train = self.df[self.features]
             self.X_test = self.df[self.features]
@@ -118,7 +106,13 @@ class BaseModel:
 
 
     def fit_predict(self):
-        self.df = self.treatment(self.df).copy(deep=True)
+
+        if callable(self.treatment):
+            self.df = self.treatment(self.df).copy(deep=True)
+        else:
+            self.df = self.treatment.transform(self.df).copy(deep=True)
+            self.features = self.treatment.features
+
         self.train_test_()
         predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else ''
 
@@ -154,8 +148,13 @@ class BaseModel:
             raise SystemError('No ``predict_type`` available')
     
 
-    def predict(self, df_):
-        df_ = self.treatment(df_).copy(deep=True)
+    def predict(self, df_:pd.DataFrame):
+
+        if callable(self.treatment):
+            df_ = self.treatment(df_).copy(deep=True)
+        else:
+            df_ = self.treatment.transform(df_).copy(deep=True)
+
         predict_type = self.predict_type.lower().strip() if isinstance(self.predict_type, str) else None
 
         if ('func' in predict_type) or callable(self.model):
@@ -206,6 +205,7 @@ class BaseModel:
         self.rating = rating
         
         return model
+
 
     def eval_goodness_of_fit(self, method:Union[str,type]='gini', rating:Union[type]=None,
                              comparison_cols:list[str]=[]):
@@ -437,19 +437,22 @@ class BaseModel:
             return pdf
         
 
-    def eval_best_rating(self, sort:str=None, split:Literal['train','test','oot']=None):
-        
+    def eval_best_rating(self, sort:str='ks', split:Literal['train','test','oot']=None):
+        if isinstance(split, str):
+            split = [split]
         metrics_dict = {}
 
         for rating_name, rating in self.ratings.items():
             if (split is not None):
-                y_true = rating.df[self.df['split'] == split][rating.target]
-                y_pred = rating.df[self.df['split'] == split]['rating']
-                dff = rating.df[self.df['split'] == split].copy(deep=True)
+                y_true = rating.y_true(split=split)
+                y_pred = rating.y_pred(split=split)
+                # y_pred_score = rating.y_pred_score()
+                dff = rating.df[(self.df['split'].isin(split)) & (rating.df[rating.target].notna())].copy(deep=True)
             else:
-                y_true = rating.df[rating.target]
-                y_pred = rating.df['rating']
-                dff = rating.df.copy(deep=True)
+                y_true = rating.y_true()
+                y_pred = rating.y_pred()
+                # y_pred_score = rating.y_pred_score()
+                dff = rating.df[rating.df[rating.target].notna()].copy(deep=True)
 
             try: iv = IV_Discriminant(dff, rating.target, ['rating']).value('rating', final_value=True)
             except: iv = np.nan
@@ -468,12 +471,14 @@ class BaseModel:
             y_true = dff[rating.target]
             y_pred = dff.groupby('rating')[self.target].transform('mean')
 
-            hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
+            hosmer_lemershow = GoodnessFit.hosmer_lemeshow(y_true=y_true, y_pred=y_pred, info=True, g=len(dff['rating'].unique()))
+            brier_score = GoodnessFit.brier_score(y_true=y_true, y_pred=y_pred)
+            ece = GoodnessFit.expected_calibration_error(y_true=y_true, y_pred=y_pred, n_bins=10)
             log_likelihood = GoodnessFit.log_likelihood(y_true=y_true, y_pred=y_pred)
             aic = GoodnessFit.aic(y_true=y_true, y_pred=y_pred, n_features=self.n_features)
             bic = GoodnessFit.bic(y_true=y_true, y_pred=y_pred, n_features=self.n_features, sample_size=len(self.df))
-            wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)['conclusion']
-            deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)['power']
+            wald_test = GoodnessFit.wald_test(y_true=y_true, y_pred=y_pred, info=True)
+            deviance_odds = GoodnessFit.deviance_odds(y_true=y_true, y_pred=y_pred, info=True)
 
             metrics_dict[f'{self.name}.{rating_name}'] = {
                 'iv': round(iv,4),
@@ -482,7 +487,12 @@ class BaseModel:
                 'auc': round(auc,4),
                 'gini': round(gini,4),
                 'chi2': chi2,
-                'wald test': wald_test,
+                'hosmer-lemeshow': hosmer_lemershow['HL'],
+                'hosmer conclusion': hosmer_lemershow['conclusion'],
+                'brier': brier_score,
+                'ece': ece,
+                'wald test': wald_test['conclusion'],
+                'deviance odds power': deviance_odds['power'],
                 'log-likelihood': round(log_likelihood,1),
                 'aic': round(aic,1),
                 'bic': round(bic,1),
@@ -501,3 +511,24 @@ class BaseModel:
             ...
 
         return dff
+
+
+    def y_true(self, split:list[Literal['train','test','oot']]|str=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
+        y_true = self.df[
+            (self.df[self.target].notna()) &
+            (self.df['split'].isin(split))
+        ][self.target].tolist()
+        return np.array(y_true)
+    
+
+    def y_pred(self, split:list[Literal['train','test','oot']]|str=['train','test','oot']):
+        if isinstance(split, str):
+            split = [split]
+        y_pred = self.df[
+            (self.df[self.target].notna()) &
+            (self.df['split'].isin(split))
+        ]['score'].tolist()
+        return np.array(y_pred)
+    
