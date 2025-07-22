@@ -50,11 +50,11 @@ class CH_Binning():
                 self.n_bins_ = i
                 self.model = model_
                 self.bins_map = bins_map
-
-            try:
-                self.model == 0
-            except: 
-                raise TypeError('No optimum binning was found in the range interval for X and Y.')
+                
+        try:
+            self.model == 0
+        except: 
+            raise TypeError('No optimum binning was found in the range interval for X and Y.')
 
             self._copy_model_attributes()
             
