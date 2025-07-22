@@ -571,7 +571,7 @@ class Rating():
         fig_auc = auc.plot(method='cap')
         auc_value = auc.value(final_value=True)
         
-        fig_target = plotlymodex.frequency(dff, x='score', covariate=self.target, opacity=0.4)
+        fig_target = plotlymodex.frequency(dff.sort_values(by=self.target), x='score', covariate=self.target, opacity=0.4, colors=["#7bcc63","#c96969"])
         fig_ratings = plotlymodex.frequency(
             dff.sort_values('rating', ascending=False), x='score', covariate='rating', bin_size=0.01, opacity=0.4, 
             colors=pc.sample_colorscale('turbo', list(reversed([i / (self.n_ratings - 1) for i in range((self.n_ratings))])))
