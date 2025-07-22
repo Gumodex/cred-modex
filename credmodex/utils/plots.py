@@ -123,14 +123,14 @@ def plot_migration_analysis(df:pd.DataFrame=None, index:str='rating', column:str
 
     if z_format == 'percent':
         z = [[elem * 100 for elem in sublist] for sublist in z]
-        migration_dff = (100*migration_dff.round(4)).fillna('-')
+        migration_dff = (100*migration_dff.round(4))
         texttemplate = "%{z:.2f}"
     elif z_format == 'int':
-        migration_dff = migration_dff.fillna(-10000).astype(int).replace(-10000,'-')
+        migration_dff = migration_dff.astype('Int64')
         texttemplate = "%{z:.0f}"
     else:
-        try: migration_dff = migration_dff.round(3).fillna('-')
-        except: migration_dff = migration_dff.fillna(-10000).astype(int).replace(-10000,'-')
+        try: migration_dff = migration_dff.round(3)
+        except: migration_dff = migration_dff.astype('Int64')
 
     fig = go.Figure()
     fig.add_trace(go.Heatmap(
