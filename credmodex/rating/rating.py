@@ -26,7 +26,7 @@ __all__ = [
 
 
 class Rating():
-    def __init__(self, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, time_col:str=None, model:type=CH_Binning(max_n_bins=15), 
+    def __init__(self, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, model:type=CH_Binning(max_n_bins=15), 
                  type:str='score', optb_type:str='transform', doc:str=None, suppress_warnings:bool=False, name:str=None):
         
         if (df is None):
@@ -43,12 +43,12 @@ class Rating():
         self.name = name
 
         self.id = 'id'
-        self.time_col = time_col
+        self.time_col = 'date'
         self.target = target
         self.type = type
         self.suppress_warnings = suppress_warnings
 
-        self.forbidden_cols = ['split', 'score', 'rating', self.id, self.target, self.time_col]
+        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, 'date']
         if isinstance(features,str):
             features = [features]
         if (features is None):

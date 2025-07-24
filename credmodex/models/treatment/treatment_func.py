@@ -114,15 +114,15 @@ def min_max_dict_normalize(data_dict:dict):
 
 
 class TreatmentFunc:
-    def __init__(self, df:pd.DataFrame=pd.DataFrame(), target:str=None, features:list[str]=None, time_col:str=None,
+    def __init__(self, df:pd.DataFrame=pd.DataFrame(), target:str=None, features:list[str]=None,
                  include_features:bool=True, suppress_warnings:bool=False):
         self.raw_df = df.copy(deep=True)
         self.df = df.copy(deep=True)
         self.target = target
-        self.time_col = time_col
+        self.time_col = 'date'
         self.features = features
         self.include_features = include_features
-        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, self.time_col]
+        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, 'date']
         self.pipeline = {}
         self.suppress_warnings = suppress_warnings
 

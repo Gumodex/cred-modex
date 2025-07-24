@@ -23,7 +23,7 @@ __all__ = [
 
 
 class CredLab:
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:Union[list[str],str]=None, time_column:str=None,
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:Union[list[str],str]=None, 
                  test_size:float=0.1, out_of_time:float|str=0.2, seed:int=42, suppress_warnings:bool=False):
 
         if isinstance(features,str):
@@ -38,14 +38,14 @@ class CredLab:
         features = [f for f in features 
                     if f in df.columns 
                     and f != target 
-                    and f != time_column
+                    and f != 'date'
                     and f != 'id']
         
         if ('id' not in df.columns):
             df['id'] = range(len(df))
 
-        if time_column:
-            self.df = df[features + [target] + [time_column] + ['id']].copy(deep=True) if features and target else None
+        if 'date' in df.columns:
+            self.df = df[features + [target] + ['date'] + ['id']].copy(deep=True) if features and target else None
         else:
             self.df = df[features + [target] + ['id']].copy(deep=True) if features and target else None
         if (self.df is None):
@@ -63,9 +63,10 @@ class CredLab:
         self.metrics = {}
 
         self.test_size = test_size
-        self.time_column = time_column
-        if self.time_column is None:
+        self.time_column = 'date'
+        if self.time_column not in self.df.columns:
             out_of_time = None
+            self.time_column = None
         self.out_of_time = out_of_time
         self.train_test_split()
 
@@ -168,17 +169,14 @@ class CredLab:
             raise NotImplementedError("Matplotlib plotting is not implemented yet.")
 
 
-    def add_model(self, model:type='LogisticRegression', treatment:type=None, name:str=None, doc:str=None, time_col:str=None, seed:int=42):
+    def add_model(self, model:type='LogisticRegression', treatment:type=None, name:str=None, doc:str=None, seed:int=42):
 
         if name is None:
             name = f'{model.__class__.__name__}_{len(self.models)+1}'
-        if time_col is None:
-            try: time_col = self.time_column
-            except: ...
         
         base_model = BaseModel(
             model=model, treatment=treatment, df=self.df, doc=doc, seed=seed,
-            features=self.features, target=self.target, predict_type='prob', time_col=time_col,
+            features=self.features, target=self.target, predict_type='prob', 
             name=name, suppress_warnings=self.suppress_warnings
             )
         self.models[name] = base_model
@@ -438,7 +436,7 @@ class CredLab:
 
 
     def get_rating_df(self):
-        df_ = pd.DataFrame(self.df[['id', 'over', 'data', 'split']])
+        df_ = pd.DataFrame(self.df[['id', self.target, 'date', 'split']])
         for model_name, model in self.models.items():
             for rating_name, rating in model.ratings.items():
                 df_ = df_.merge(

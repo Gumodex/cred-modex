@@ -21,8 +21,8 @@ class BaseModel:
     Base class for all models with advanced splitting functionality.
     """
 
-    def __init__(self, model:type=LogisticRegression(max_iter=10000, solver='saga'), treatment:type=None, df:pd.DataFrame=None, seed:int=42, id:str='id', doc:str=None,
-                 features=None, target=None, predict_type:str=None, time_col:str=None, name:str=None, n_features:int=None,
+    def __init__(self, model:type=LogisticRegression(max_iter=10000, solver='saga'), treatment:type=None, df:pd.DataFrame=None, seed:int=42, doc:str=None,
+                 features=None, target=None, predict_type:str=None, name:str=None, n_features:int=None,
                  suppress_warnings:bool=False):
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
@@ -44,7 +44,7 @@ class BaseModel:
         self.doc = doc
         self.id = 'id'
         self.target = target
-        self.time_col = time_col
+        self.time_col = 'date'
         self.name = name
         self.predict_type = predict_type
         self.suppress_warnings = suppress_warnings
@@ -54,7 +54,7 @@ class BaseModel:
         else:
             self.features = features
         
-        self.forbidden_cols = ['split', 'score', 'rating', self.id, self.target, self.time_col]
+        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, 'date']
         self.features = [f for f in features 
                          if f in df.columns 
                          and f not in self.forbidden_cols]
@@ -187,16 +187,13 @@ class BaseModel:
             raise SystemError('No ``predict_type`` available')
     
 
-    def add_rating(self, model:type='CH_Binning', doc:str=None, type='score', optb_type:str='transform', name:str=None,
-                   time_col:str=None):
+    def add_rating(self, model:type='CH_Binning', doc:str=None, type='score', optb_type:str='transform', name:str=None):
         if (name is None):
             name = f'{model.__class__.__name__}_{len(self.ratings)+1}'
-        if (time_col is None):
-            time_col = self.time_col
         
         rating = Rating(
             model=model, df=self.df, type=type, features=['score'], target=self.target, 
-            optb_type=optb_type, doc=doc, time_col=time_col, name=name, suppress_warnings=self.suppress_warnings
+            optb_type=optb_type, doc=doc, name=name, suppress_warnings=self.suppress_warnings
             )
         self.ratings[name] = rating
         setattr(self, name, rating)
