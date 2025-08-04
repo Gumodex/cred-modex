@@ -18,6 +18,7 @@ sys.path.append(os.path.abspath('.'))
 from credmodex.rating.binning import CH_Binning
 from credmodex import discriminancy
 from credmodex.utils import *
+from credmodex.config import *
 
 
 __all__ = [
@@ -27,7 +28,7 @@ __all__ = [
 
 class Rating():
     def __init__(self, df:pd.DataFrame=None, features:Union[list[str],str]='score', target:str=None, model:type=CH_Binning(max_n_bins=15), 
-                 type:str='score', optb_type:str='transform', doc:str=None, suppress_warnings:bool=False, name:str=None):
+                 key_columns:list[str]=[], type:str='score', optb_type:str='transform', doc:str=None, suppress_warnings:bool=False, name:str=None):
         
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
@@ -42,13 +43,14 @@ class Rating():
         self.optb_type = optb_type
         self.name = name
 
-        self.id = 'id'
-        self.time_col = 'date'
+        self.id = DEFAULT_FORBIDDEN_COLS['id']
+        self.time_col = DEFAULT_FORBIDDEN_COLS['date']
         self.target = target
         self.type = type
         self.suppress_warnings = suppress_warnings
 
-        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, 'date']
+        self.key_columns = key_columns
+        self.forbidden_cols = get_forbidden_cols(additional_cols=key_columns)
         if isinstance(features,str):
             features = [features]
         if (features is None):

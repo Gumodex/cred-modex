@@ -14,6 +14,7 @@ from scipy.stats import chi2_contingency
 from credmodex.rating import Rating
 from credmodex.discriminancy import *
 from credmodex.utils import *
+from credmodex.config import *
 
 
 class BaseModel:
@@ -22,7 +23,7 @@ class BaseModel:
     """
 
     def __init__(self, model:type=LogisticRegression(max_iter=10000, solver='saga'), treatment:type=None, df:pd.DataFrame=None, seed:int=42, doc:str=None,
-                 features=None, target=None, predict_type:str=None, name:str=None, n_features:int=None,
+                 key_columns:list[str]=[], features=None, target=None, predict_type:str=None, name:str=None, n_features:int=None,
                  suppress_warnings:bool=False):
         if (df is None):
             raise ValueError("DataFrame cannot be None. Input a DataFrame.")
@@ -42,9 +43,9 @@ class BaseModel:
         self.treatment = treatment
         self.df = df.copy(deep=True)
         self.doc = doc
-        self.id = 'id'
+        self.id = DEFAULT_FORBIDDEN_COLS['id']
         self.target = target
-        self.time_col = 'date'
+        self.time_col = DEFAULT_FORBIDDEN_COLS['date']
         self.name = name
         self.predict_type = predict_type
         self.suppress_warnings = suppress_warnings
@@ -54,7 +55,8 @@ class BaseModel:
         else:
             self.features = features
         
-        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, 'date']
+        self.key_columns = key_columns
+        self.forbidden_cols = get_forbidden_cols(additional_cols=key_columns)
         self.features = [f for f in features 
                          if f in df.columns 
                          and f not in self.forbidden_cols]
@@ -193,7 +195,8 @@ class BaseModel:
         
         rating = Rating(
             model=model, df=self.df, type=type, features=['score'], target=self.target, 
-            optb_type=optb_type, doc=doc, name=name, suppress_warnings=self.suppress_warnings
+            optb_type=optb_type, doc=doc, name=name, suppress_warnings=self.suppress_warnings,
+            key_columns=self.key_columns
             )
         self.ratings[name] = rating
         setattr(self, name, rating)

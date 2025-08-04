@@ -10,6 +10,7 @@ from typing import Union, Callable, Dict, Tuple, List, Literal
 
 sys.path.append(os.path.abspath('.'))
 from credmodex.rating import CH_Binning
+from credmodex.config import *
 
 
 __all__ = [
@@ -115,14 +116,19 @@ def min_max_dict_normalize(data_dict:dict):
 
 class TreatmentFunc:
     def __init__(self, df:pd.DataFrame=pd.DataFrame(), target:str=None, features:list[str]=None,
-                 include_features:bool=True, suppress_warnings:bool=False):
+                 key_columns:list[str]=[], include_features:bool=True, suppress_warnings:bool=False):
         self.raw_df = df.copy(deep=True)
         self.df = df.copy(deep=True)
+
+        if target is None:
+            target = DEFAULT_FORBIDDEN_COLS['target']
         self.target = target
-        self.time_col = 'date'
+        
+        self.time_col = DEFAULT_FORBIDDEN_COLS['date']
         self.features = features
         self.include_features = include_features
-        self.forbidden_cols = ['split', 'score', 'rating', 'id', self.target, 'date']
+        self.key_columns = key_columns
+        self.forbidden_cols = get_forbidden_cols(additional_cols=key_columns)
         self.pipeline = {}
         self.suppress_warnings = suppress_warnings
 
