@@ -204,7 +204,7 @@ class Rating():
         return bin_map
                 
 
-    def plot_stability_in_time(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating', 
+    def plot_stability_in_time(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str=DEFAULT_FORBIDDEN_COLS['rating'], 
                                agg_func:str='mean', percent:bool=True, split:list|Literal['train','test','oot']=['train','test','oot'], 
                                sample:float=None, width=800, height=600, color_seq:px.colors=px.colors.sequential.Turbo,
                                stackgroup:bool|str=None, **kwargs):
@@ -422,7 +422,7 @@ class Rating():
         else: return migration_dff
 
     
-    def plot_gains_per_risk_group(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str='rating',
+    def plot_gains_per_risk_group(self, df:pd.DataFrame=None, initial_date:str=None, upto_date:str=None, col:str=DEFAULT_FORBIDDEN_COLS['rating'],
                                   agg_func:str='mean', color_seq:px.colors=px.colors.sequential.Turbo, sample:float=None,
                                   show_bar:bool=True, show_scatter:bool=True, sort_by_bad:bool=False, 
                                   split:list|Literal['train','test','oot']=['train','test','oot'], width=800, height=600, **kwargs):
