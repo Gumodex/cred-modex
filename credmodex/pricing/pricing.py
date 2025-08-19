@@ -123,7 +123,10 @@ class Pricing():
         agg_df['approved'] = agg_df[f'cumul_{self.prob_target}'].apply(lambda x: 0 if x >= max_cumul_target else 1)
 
         # Round the values
-        agg_df[f'mean_{self.col_term}'] = agg_df[f'mean_{self.col_term}'].astype('Int64')
+        col_term_mean = f'mean_{self.col_term}'
+        agg_df[col_term_mean] = pd.to_numeric(agg_df[col_term_mean], errors='coerce')  # converte valores inválidos para NaN
+        agg_df[col_term_mean] = agg_df[col_term_mean].round().astype('Int64')
+
         agg_df[f'mean_{self.col_loan_amount}'] = agg_df[f'mean_{self.col_loan_amount}'].astype(float).round(2)
         agg_df[f'mean_{self.col_loan_amount}'] = agg_df[f'mean_{self.col_loan_amount}'].astype(float).round(2)
         agg_df[f'mean_{self.prob_target}'] = agg_df[f'mean_{self.prob_target}'].round(4)
@@ -330,7 +333,10 @@ class Pricing():
                 f'cumul_{self.prob_target}',
             ]
         
-        df['production'] = (df['approve'] * df[self.col_id] * df[f'mean_{self.col_loan_amount}'] * acceptance_percent).astype('Int64')
+        df['production'] = pd.to_numeric(
+            df['approve'] * df[self.col_id] * df[f'mean_{self.col_loan_amount}'] * acceptance_percent,
+            errors='coerce'
+        ).round().astype('Int64')
 
         df.loc['Total', [self.col_id, 'production']] = df.loc[:, [self.col_id, 'production']].sum()
         df[f'mean_{self.prob_target}'] = df[f'mean_{self.prob_target}'].round(4)
@@ -486,13 +492,17 @@ class Pricing():
             priority:list=None,
             alpha:float=0.1,
             acceptance_percent: list[float] = None,
-            queries: list[str] = None,
+            queries: list[str] = [],
             split_swap_in: list[Literal['train', 'test', 'oot']]=['oot'],
             split_approved: list[Literal['train', 'test', 'oot']]=None,
             split_production: list[Literal['train', 'test', 'oot', 'ttd', 'out']]=None,
             initial_date: str = None,
             upto_date: str = None,
+            return_swap_in_df: bool = False,
         ) -> pd.DataFrame:
+
+        while len(queries) < len(dfs):
+            queries.append(None)
 
         swap_in_dfs = []
         for idx, df in enumerate(dfs):
@@ -504,6 +514,9 @@ class Pricing():
                 split=split_swap_in,
             )
             swap_in_dfs.append(current_df)
+        
+        if return_swap_in_df:
+            return swap_in_dfs
 
         simulated_df = self.add_approve_simulations(
             dfs=swap_in_dfs,

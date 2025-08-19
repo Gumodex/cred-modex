@@ -191,11 +191,15 @@ class CredLab:
         return model
 
 
-    def eval_discriminancy(self, method:Union[str,type]='iv', conditions:list=[]):
+    def eval_discriminancy(self, method:Union[str,type]='iv', split:list=['train','test','oot'], conditions:list=[]):
         if method is None:
             raise ValueError("Method cannot be None. Input a str or a Discriminancy class.")
-
         df = self.df.copy()
+        
+        if not isinstance(split, list):
+            split = [split]
+        df = df[df['split'].isin(split)]
+
         for condition in conditions:
             df = df.query(condition)
         if df.empty:
