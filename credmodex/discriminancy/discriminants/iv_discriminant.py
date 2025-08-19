@@ -12,9 +12,11 @@ __all__ = [
 
 class IV_Discriminant():
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
-        self.df = df
-
+        self.df = df.copy(deep=True)
         self.target = target
+
+        self.df = self.df[self.df[self.target].notna()]
+
         assert set(self.df[self.target].unique()) == {0, 1}, "Target must be binary 0/1"
         
         if isinstance(features,str):
