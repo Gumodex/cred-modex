@@ -1,12 +1,16 @@
 # Private testing
 update.txt
-Desfiante Enel.ipynb
+Desfiante_Enel.ipynb
 Behavior Enel.ipynb
+Desfiante_Enel.qmd
+Desfiante_Enel_files/
 
 # Data files
 *.parquet
 *.csv
 *.pdf
+*.js
+*.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
