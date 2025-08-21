@@ -87,10 +87,10 @@ class IV_Discriminant():
             try:
                 df = self.value(col=col)
                 iv_df.loc[col,'IV'] = round(df.loc['Total','IV'],6)
-            except:
+            except Exception as e:
                 if not getattr(self, 'suppress_warnings', False):
                     warnings.warn(
-                        '<log: column {col} discharted ({e})>',
+                        f'<log: column {col} discharted ({e})>',
                         category=UserWarning
                     )
 

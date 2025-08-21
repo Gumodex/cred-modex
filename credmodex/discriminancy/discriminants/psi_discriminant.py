@@ -123,10 +123,10 @@ class PSI_Discriminant():
                 df = self.value(col=col, max_n_bins=max_n_bins)
                 psi_df.loc[col,'PSI'] = df.loc['Total','PSI'].round(4)
                 psi_df.loc[col,'ANDERSON (2022)'] = df.loc['Total','ANDERSON (2022)']
-            except:
+            except Exception as e:
                 if not getattr(self, 'suppress_warnings', False):
                     warnings.warn(
-                        '<log: column {col} discharted ({e})>',
+                        f'<log: column {col} discharted ({e})>',
                         category=UserWarning
                     )
 

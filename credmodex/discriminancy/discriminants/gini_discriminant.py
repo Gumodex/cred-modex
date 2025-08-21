@@ -118,10 +118,10 @@ class GINI_Discriminant():
             try:
                 df = self.value(col=col, final_value=True, percent=percent)
                 gini_df.loc[col,'Gini'] = df
-            except:
+            except Exception as e:
                 if not getattr(self, 'suppress_warnings', False):
                     warnings.warn(
-                        '<log: column {col} discharted ({e})>',
+                        f'<log: column {col} discharted ({e})>',
                         category=UserWarning
                     )
 
