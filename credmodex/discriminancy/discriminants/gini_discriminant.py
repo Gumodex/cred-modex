@@ -2,6 +2,7 @@ import sys
 import os
 import random
 from typing import Literal
+import warnings
 
 import pandas as pd
 
@@ -18,9 +19,11 @@ __all__ = [
 
 
 class GINI_Discriminant():
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None,
+                 suppress_warnings:bool=False):
         self.df = df
         self.target = target
+        self.suppress_warnings = suppress_warnings
         
         if isinstance(features,str):
             features = [features]
@@ -116,7 +119,11 @@ class GINI_Discriminant():
                 df = self.value(col=col, final_value=True, percent=percent)
                 gini_df.loc[col,'Gini'] = df
             except:
-                print(f'<log: column {col} discharted>')
+                if not getattr(self, 'suppress_warnings', False):
+                    warnings.warn(
+                        '<log: column {col} discharted ({e})>',
+                        category=UserWarning
+                    )
 
         return gini_df
     

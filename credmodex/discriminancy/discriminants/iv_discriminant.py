@@ -11,9 +11,11 @@ __all__ = [
 
 
 class IV_Discriminant():
-    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None):
+    def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None,
+                 suppress_warnings:bool=False):
         self.df = df.copy(deep=True)
         self.target = target
+        self.suppress_warnings = suppress_warnings
 
         self.df = self.df[self.df[self.target].notna()]
 
@@ -86,7 +88,11 @@ class IV_Discriminant():
                 df = self.value(col=col)
                 iv_df.loc[col,'IV'] = round(df.loc['Total','IV'],6)
             except:
-                print(f'<log: column {col} discharted>')
+                if not getattr(self, 'suppress_warnings', False):
+                    warnings.warn(
+                        '<log: column {col} discharted ({e})>',
+                        category=UserWarning
+                    )
 
         siddiqi_conditions = [
             (iv_df['IV'] < 0.03),

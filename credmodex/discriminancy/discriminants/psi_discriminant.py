@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+import warnings
 
 import pandas as pd
 import numpy as np
@@ -20,9 +21,10 @@ __all__ = [
 
 class PSI_Discriminant():
     def __init__(self, df:pd.DataFrame=None, target:str=None, features:str|list[str]=None, 
-                 percent_shift:float=0.8, enable_oot:bool=False):
+                 percent_shift:float=0.8, enable_oot:bool=False, suppress_warnings:bool=False):
         self.df = df
         self.target = target
+        self.suppress_warnings = suppress_warnings
         
         if (enable_oot == True) and ('split' not in self.df.columns):
             raise ValueError("If enable_oot is True, the DataFrame must contain a 'split' column with 'oot' elements")
@@ -122,7 +124,11 @@ class PSI_Discriminant():
                 psi_df.loc[col,'PSI'] = df.loc['Total','PSI'].round(4)
                 psi_df.loc[col,'ANDERSON (2022)'] = df.loc['Total','ANDERSON (2022)']
             except:
-                print(f'<log: column {col} discharted>')
+                if not getattr(self, 'suppress_warnings', False):
+                    warnings.warn(
+                        '<log: column {col} discharted ({e})>',
+                        category=UserWarning
+                    )
 
         return psi_df
     
